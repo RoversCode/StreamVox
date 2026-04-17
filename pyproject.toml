@@ -1,0 +1,29 @@
+[project]
+name = "streamvox"
+version = "0.1.0"
+description = "StreamVox SDK skeleton with online licensing support."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "cn2an==0.5.23",
+    "cryptography>=45.0.0,<46.0.0",
+    "gguf==0.18.0",
+    "hyperpyyaml>=1.2.3",
+    "inflect==7.5.0",
+    "langdetect==1.0.9",
+    "librosa==0.11.0",
+    "modelscope==1.30.0",
+    "munch==4.0.0",
+    "numpy>=2.2.0,<3.0.0",
+    "onnxruntime-gpu==1.21.1",
+    "soundfile==0.13.1",
+    "srt==3.5.3",
+    "tokenizers>=0.22.2",
+    "torch==2.6.0",
+    "torchaudio==2.6.0",
+    "torchvision==0.21.0",
+]
+
+[[tool.uv.index]]
+url = "https://download.pytorch.org/whl/cu124"
+
