@@ -163,7 +163,23 @@ uv pip install dist/streamvox-0.1.0-cp310-cp310-manylinux_2_28_x86_64.whl
 python -c "from streamvox import TTSEngine; print(TTSEngine)"
 ```
 
-### 4.5 准备模型文件
+### 4.5 Liunx后端二进制说明：默认 Vulkan，极限性能可自编译 CUDA
+
+由于 CUDA 版本兼容关系复杂，且 Linux 发行版、驱动版本、系统库和用户环境差异很大，预编译 CUDA 后端很难保证在大多数机器上稳定运行。为了优先保证开箱即用和跨硬件兼容性，当前提供的 StreamVox 预编译 wheel 默认内置的是基于 `llama.cpp Vulkan` 后端编译的运行库。
+
+Vulkan 后端的优势是兼容面更广：NVIDIA、AMD、Intel 独显，以及部分核显/集显环境都更容易跑通。它的取舍是峰值性能通常会低于 CUDA 后端；在同等 NVIDIA 显卡环境下，Vulkan 相比 CUDA 可能会有约 **30%** 的性能差距，具体差异仍以本机驱动、显卡型号、模型尺寸和输入长度的实测结果为准。
+
+如果你使用的是 NVIDIA 显卡，并且希望压榨极限推理性能，可以自行编译 CUDA 版本的 `llama.cpp` 运行库：
+
+1. 前往 [`llama.cpp` b8683 相关 release](https://github.com/ggml-org/llama.cpp/releases?q=b8683&expanded=true) 下载对应源码。
+2. 在本机按 `llama.cpp` 官方方式启用 CUDA 后端并完成编译。
+3. 找到编译产物中的全部 `.so` 动态库文件。
+4. 找到当前pyhton环境下site-packages里的streamvox，并清空 `streamvox/bin` 目录下的旧运行库文件。
+5. 将自行编译得到的全部 `.so` 文件复制到 `streamvox/bin` 目录。
+
+替换完成后，StreamVox 就会自动使用基于cuda编译好的llama.cpp去推理了。
+
+### 4.6 准备模型文件
 
 StreamVox 支持传入模型名，也支持传入本地模型目录。生产和离线环境推荐使用本地模型目录。
 [模型下载地址](https://modelscope.cn/profile/ChengHee)
