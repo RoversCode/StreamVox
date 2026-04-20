@@ -1,8 +1,8 @@
 from streamvox import TTSEngine
 
 engine = TTSEngine(
-    model="qwen3-tts-clone-1.7b-gguf",
-    license_key="",
+    model="s2-pro-4b-gguf",
+    license_key="LJJ-CMREFZI-184468df-155e-4417-aab3-33c8c97da6b9",
     device="auto",
 )
 
@@ -13,6 +13,9 @@ prompt = engine.make_prompt(
     persist=False,
 )
 
+import soundfile as sf
+import numpy as np
+
 chunks = engine.stream(
     "你好，这里是 StreamVox 的快速开始示例。",
     role_name=prompt,
@@ -20,10 +23,14 @@ chunks = engine.stream(
     track_performance=True
 )
 
-# import soundfile as sf
+audios = []
 
 for idx, chunk in enumerate(chunks):
-    print(chunk)
-    # sf.write(f"output_{idx}.wav", chunk, engine.runtime.sample_rate)
+    audios.append(chunk)
+
+audios = np.concatenate(audios, axis=-1)
+    
+
+sf.write(f"output.wav", audios, engine.runtime.sample_rate)
 
 engine.shutdown()
