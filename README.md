@@ -1,6 +1,6 @@
 <div align="center">
     <h1>StreamVox SDK</h1>
-    <p><strong>商用流式实时语音合成（TTS）引擎开发者指南</strong></p>
+    <p><strong>工业级流式实时语音合成（TTS）引擎开发者指南</strong></p>
     <p>
         <a href="https://item.taobao.com/item.htm?ft=t&id=1044813462201&spm=a21dvs.23580594.0.0.6781645ez4U7cp">
             <img alt="SDK Key 购买" src="https://img.shields.io/badge/SDK%20Key-%E8%B4%AD%E4%B9%B0%E9%93%BE%E6%8E%A5-ff6a00?style=for-the-badge">
