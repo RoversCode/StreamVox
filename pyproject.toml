@@ -15,7 +15,8 @@ dependencies = [
     "modelscope==1.30.0",
     "munch==4.0.0",
     "numpy>=2.2.0,<3.0.0",
-    "onnxruntime-gpu==1.21.1",
+    "onnxruntime-directml==1.21.1; sys_platform == 'win32'",
+    "onnxruntime-gpu==1.21.1; sys_platform == 'linux'",
     "soundfile==0.13.1",
     "srt==3.5.3",
     "tokenizers>=0.22.2",
@@ -25,5 +26,7 @@ dependencies = [
 ]
 
 [[tool.uv.index]]
+name = "pytorch-cu124"
 url = "https://download.pytorch.org/whl/cu124"
+explicit = true
 
