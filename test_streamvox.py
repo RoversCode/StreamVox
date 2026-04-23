@@ -2,7 +2,6 @@ from streamvox import TTSEngine
 
 engine = TTSEngine(
     model="s2-pro-4b-gguf",
-    license_key="LJJ-CMREFZI-184468df-155e-4417-aab3-33c8c97da6b9",
     device="auto",
 )
 
