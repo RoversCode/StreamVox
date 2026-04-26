@@ -24,7 +24,6 @@ engine = TTSEngine(
 | --- | --- |
 | `model` | 模型名或本地模型 bundle 目录。 |
 | `license_key` | 在线授权 key。为空或无效时进入 trial 模式。 |
-| `license_path` | 本地离线授权文件路径。通常和 `license_key` 二选一。 |
 | `device` | 设备选择，支持 `auto`、`cpu`、`gpu`、`gpu:<index>`。 |
 | `n_ctx` | 上下文窗口配置。一般不需要手动传入。 |
 | `verify_model_sha256` | 是否校验模型文件 sha256。测试阶段可关闭，正式交付按需要开启。 |
