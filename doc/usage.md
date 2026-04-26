@@ -48,7 +48,7 @@ engine = TTSEngine(
 )
 ```
 
-适合更关注启动速度、低资源占用和高并发对话的场景。
+适合更关注启动速度、低资源占用。
 
 ### 2.2 Qwen3 TTS Clone 1.7B
 
@@ -160,12 +160,55 @@ prompt = engine.make_prompt(
 
 ### 4.4 直接在 `stream()` 中传参考音频
 
+这种方式**可以使用，但不推荐作为正式接入方案**。  
+原因是：构建prompt data需要耗时，会拖慢首chunk延迟。。
+
+更推荐的做法是：
+
+1. 先通过 `make_prompt(...)` 预先生成 Prompt。
+2. 如果角色需要复用，使用 `persist=True` 落盘缓存，后续正式推理时直接传 `role_name="xxx"`。
+3. 如果只是一次性临时合成，使用 `persist=False`，然后在正式推理时直接把返回的 `prompt` 对象传给 `role_name`。
+
 ```python
 chunks = engine.stream(
     text="这是一段即时克隆的示例。",
     role_name="transient_voice",
     prompt_audio_path="reference.wav",
     prompt_text="这是参考音频的转写文本。",
+    language="chinese",
+)
+```
+
+推荐工作流示例一：预先创建可复用角色，再在正式推理时只传 `role_name`
+
+```python
+prompt = engine.make_prompt(
+    role_name="gemi_voice",
+    audio_path="reference.wav",
+    prompt_text="这是参考音频的转写文本。",
+    persist=True,
+)
+
+chunks = engine.stream(
+    text="这是一段正式推理文本。",
+    role_name="gemi_voice",
+    language="chinese",
+)
+```
+
+推荐工作流示例二：预先创建临时 Prompt，再在正式推理时直接传 Prompt 对象
+
+```python
+prompt = engine.make_prompt(
+    role_name="tmp_voice",
+    audio_path="reference.wav",
+    prompt_text="这是参考音频的转写文本。",
+    persist=False,
+)
+
+chunks = engine.stream(
+    text="这是一段正式推理文本。",
+    role_name=prompt,
     language="chinese",
 )
 ```
@@ -192,15 +235,17 @@ import numpy as np
 import soundfile as sf
 
 
-chunks = list(
-    engine.stream(
+chunks = engine.stream(
         text="保存 wav 的示例。",
         role_name="gemi_voice",
         language="chinese",
-    )
 )
 
-audio = np.concatenate(chunks, axis=-1)
+audios = []
+for chunk in chunks:
+    audios.append(chunk)
+
+audio = np.concatenate(audios, axis=-1)
 sf.write("result.wav", audio, engine.runtime.sample_rate)
 ```
 
@@ -323,16 +368,41 @@ prompt = engine.make_prompt(
 )
 ```
 
-多参考音频和多参考文本的列表长度必须一致。
+多参考场景下，请重点注意以下约束：
+
+1. 多参考音频和多参考文本的列表长度必须一致。
+2. `audio_path` 中的每一项，都必须与 `prompt_text` 中对应位置的那一项一一匹配，不能错位。
+3. **如果给定多参考，文本必须事先分配好 speaker。**  
+   也就是说，你传入的每一段参考文本，都必须明确标注它属于哪一个说话人，例如 `<|speaker:0|>`、`<|speaker:1|>`。
+4. 正式合成时，输入文本也应继续沿用同一套 speaker 分配规则。否则模型无法稳定理解哪一段内容应该由哪位说话人来表达。
+
+例如，下面这种写法才是推荐的多参考输入方式：
+
+```python
+prompt = engine.make_prompt(
+    role_name="multi_voice",
+    audio_path=["speaker_a.wav", "speaker_b.wav"],
+    prompt_text=[
+        "<|speaker:0|>这是第一位说话人的参考文本。",
+        "<|speaker:1|>这是第二位说话人的参考文本。",
+    ],
+    persist=True,
+)
+
+chunks = engine.stream(
+    text="<|speaker:0|>你好，下面由我先开始介绍。<|speaker:1|>接下来这部分由我继续补充说明。",
+    role_name="multi_voice",
+    language="chinese",
+)
+```
+
+如果多参考音频已经对应了多个 speaker，但参考文本没有提前分配 speaker，或者正式合成文本没有按相同规则标注 speaker，那么生成结果可能出现说话人混乱、风格漂移或角色切换不稳定的问题。
 
 ## 10. 授权说明
-
-StreamVox 支持两种授权入口：
 
 | 参数 | 说明 |
 | --- | --- |
 | `license_key` | 在线授权 key。 |
-| `license_path` | 本地 license 文件路径。 |
 
 未授权或授权失败时会进入 trial 模式。trial 模式仍会保持流式输出接口，但输出音频会经过限制处理，不能作为正式结果使用。
 

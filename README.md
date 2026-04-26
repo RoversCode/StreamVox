@@ -214,6 +214,7 @@ engine = TTSEngine(
 )
 
 try:
+    # 构建prompt data
     prompt = engine.make_prompt(
         role_name="demo_role",
         audio_path="example/Condition3.wav",
@@ -221,16 +222,20 @@ try:
         persist=False,
     )
 
-    chunks = list(
-        engine.stream(
+    # 流式输出
+    chunks = engine.stream(
             text="你好，这里是 StreamVox 的快速开始示例。",
             role_name=prompt,
             language="chinese",
             track_performance=False,
-        )
     )
 
-    audio = np.concatenate(chunks, axis=-1)
+    audios = []
+    for chunk in chunks;
+        # 输出的每一个chunk块
+        audios.append(chunk)
+
+    audio = np.concatenate(audios, axis=-1)
     sf.write("output.wav", audio, engine.runtime.sample_rate)
 finally:
     engine.shutdown()
