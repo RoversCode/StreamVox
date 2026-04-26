@@ -36,6 +36,12 @@ engine.shutdown()
 
 ## 2. 模型选择
 
+在工程接入层面，建议不要只看“参数规模”，而要从**延迟、资源占用、参考音频形态、是否需要多说话人、是否更追求最终成片质量**几个维度来选型。  
+各系列模型的完整能力说明已经拆分为独立文档，建议先阅读对应文档，再决定接入方式：
+
+* [Qwen3 TTS Clone 系列能力说明](models/qwen3-tts-clone.md)
+* [S2-Pro 系列能力说明](models/s2-pro.md)
+
 ### 2.1 Qwen3 TTS Clone 0.6B
 
 ```python
@@ -47,7 +53,8 @@ engine = TTSEngine(
 )
 ```
 
-适合更关注启动速度、低资源占用。
+该系列的完整能力说明请阅读：  
+[Qwen3 TTS Clone 系列能力说明](models/qwen3-tts-clone.md)
 
 ### 2.2 Qwen3 TTS Clone 1.7B
 
@@ -60,7 +67,8 @@ engine = TTSEngine(
 )
 ```
 
-适合更关注音色克隆质量的单参考音频场景。
+该系列的完整能力说明请阅读：  
+[Qwen3 TTS Clone 系列能力说明](models/qwen3-tts-clone.md)
 
 ### 2.3 S2-Pro 4B
 
@@ -73,7 +81,18 @@ engine = TTSEngine(
 )
 ```
 
-S2-Pro 默认采样率为 `44100 Hz`，支持更高保真输出，也支持多参考 prompt，适合有声书、专业配音和复杂情感合成。
+该系列的完整能力说明请阅读：  
+[S2-Pro 系列能力说明](models/s2-pro.md)
+
+### 2.4 系列能力差异速览
+
+| 维度 | Qwen3 0.6B | Qwen3 1.7B | S2-Pro 4B |
+| --- | --- | --- | --- |
+| 核心定位 | 极致低延迟 | 均衡通用 | 高保真演播 |
+| 参考音频 | 单参考 | 单参考 | 单参考 / 多参考 |
+| 多说话人 | 不推荐 | 不推荐 | 支持 |
+| 默认采样率 | 24000 Hz | 24000 Hz | 44100 Hz |
+| 详细能力文档 | [查看](models/qwen3-tts-clone.md) | [查看](models/qwen3-tts-clone.md) | [查看](models/s2-pro.md) |
 
 ## 3. 本地模型目录
 
