@@ -15,7 +15,6 @@ dependencies = [
     "modelscope==1.30.0",
     "munch==4.0.0",
     "numpy>=2.2.0,<3.0.0",
-    "onnxruntime-directml==1.21.1; sys_platform == 'win32'",
     "onnxruntime-gpu==1.21.1; sys_platform == 'linux'",
     "soundfile==0.13.1",
     "srt==3.5.3",
@@ -23,6 +22,17 @@ dependencies = [
     "torch==2.6.0",
     "torchaudio==2.6.0",
     "torchvision==0.21.0",
+]
+
+[project.optional-dependencies]
+windows-cuda = [
+    "onnxruntime-gpu==1.21.1; sys_platform == 'win32'",
+]
+windows-dml = [
+    "onnxruntime-directml==1.21.1; sys_platform == 'win32'",
+]
+windows-cpu = [
+    "onnxruntime==1.21.1; sys_platform == 'win32'",
 ]
 
 [[tool.uv.index]]

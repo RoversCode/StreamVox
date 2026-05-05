@@ -88,7 +88,10 @@ StreamVox 是一款商用的通用流式实时语音合成（TTS）引擎，全�
 | **S2-Pro 4B** | ~0.423 s | 0.358 | 3.97 s |
 | **VoxCPM2 2.38B** | ~0.166 s | 0.372 | 7.04 s |
 
+**注意：** voxcpm2 DmlExecutionProvider会比CUDA慢两倍左右，windows且有N卡用户极力推荐安装**Windows + NVIDIA CUDA**
+
 > **提示：** 实际耗时会受输入文本长度、参考音频长度、系统后台负载及具体硬件状态影响，上述数据仅供选型参考。
+
 
 ### 1.2 资源占用评估 (VRAM & Memory)
 
@@ -167,8 +170,36 @@ uv venv --python 3.10
 
 仓库中的 `pyproject.toml` 已经声明了运行 StreamVox 所需的主要依赖，包括 PyTorch、ONNX Runtime、音频处理和模型相关依赖。
 
+#### Linux
+
+Linux 默认依赖已经包含 `onnxruntime-gpu`：
+
 ```bash
 uv sync
+```
+
+#### Windows + NVIDIA CUDA
+
+如果你的机器使用 NVIDIA 显卡，并且希望优先走 `CUDAExecutionProvider`：
+
+```powershell
+uv sync --extra windows-cuda
+```
+
+#### Windows + DirectML
+
+如果你的机器使用 AMD / Intel / 核显，或你希望优先走 `DmlExecutionProvider`：
+
+```powershell
+uv sync --extra windows-dml
+```
+
+#### Windows + CPU
+
+如果你只打算在 Windows 上使用 CPU：
+
+```powershell
+uv sync --extra windows-cpu
 ```
 
 ### 4.4 安装 StreamVox wheel
