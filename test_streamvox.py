@@ -1,7 +1,7 @@
 from streamvox import TTSEngine
 
 engine = TTSEngine(
-    model="s2-pro-4b-gguf",
+    model="voxcpm2-gguf",
     device="auto",
 )
 
