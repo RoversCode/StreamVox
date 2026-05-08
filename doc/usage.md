@@ -41,6 +41,7 @@ engine.shutdown()
 
 * [Qwen3 TTS Clone 系列能力说明](models/qwen3-tts-clone.md)
 * [S2-Pro 系列能力说明](models/s2-pro.md)
+* [MOSS-TTS-Nano 能力说明](models/moss-tts-nano.md)
 
 ### 2.1 Qwen3 TTS Clone 0.6B
 
@@ -84,15 +85,30 @@ engine = TTSEngine(
 该系列的完整能力说明请阅读：  
 [S2-Pro 系列能力说明](models/s2-pro.md)
 
-### 2.4 系列能力差异速览
+### 2.4 MOSS-TTS-Nano 0.1B
 
-| 维度 | Qwen3 0.6B | Qwen3 1.7B | S2-Pro 4B |
-| --- | --- | --- | --- |
-| 核心定位 | 极致低延迟 | 均衡通用 | 高保真演播 |
-| 参考音频 | 单参考 | 单参考 | 单参考 / 多参考 |
-| 多说话人 | 不推荐 | 不推荐 | 支持 |
-| 默认采样率 | 24000 Hz | 24000 Hz | 44100 Hz |
-| 详细能力文档 | [查看](models/qwen3-tts-clone.md) | [查看](models/qwen3-tts-clone.md) | [查看](models/s2-pro.md) |
+```python
+engine = TTSEngine(
+    model="moss-tts-nano-onnx",
+    license_key="YOUR_SDK_KEY",
+    device="cpu",
+    verify_model_sha256=False,
+)
+```
+
+该系列的完整能力说明请阅读：  
+[MOSS-TTS-Nano 能力说明](models/moss-tts-nano.md)
+
+### 2.5 系列能力差异速览
+
+| 维度 | Qwen3 0.6B | Qwen3 1.7B | S2-Pro 4B | MOSS-TTS-Nano 0.1B |
+| --- | --- | --- | --- | --- |
+| 核心定位 | 极致低延迟 | 均衡通用 | 高保真演播 | CPU 实时首选 |
+| 参考音频 | 单参考 | 单参考 | 单参考 / 多参考 | 单参考 |
+| 多说话人 | 不推荐 | 不推荐 | 支持 | 不支持 |
+| 默认采样率 | 24000 Hz | 24000 Hz | 44100 Hz | 48000 Hz |
+| 推荐部署 | GPU | GPU | GPU | CPU / 低资源机器 |
+| 详细能力文档 | [查看](models/qwen3-tts-clone.md) | [查看](models/qwen3-tts-clone.md) | [查看](models/s2-pro.md) | [查看](models/moss-tts-nano.md) |
 
 ## 3. 本地模型目录
 
@@ -161,6 +177,9 @@ chunks = engine.stream(
 ```
 
 `persist=False` 适合试听、用户上传音频或不希望落盘的临时合成场景。
+
+对于 `moss-tts-nano-onnx`，更推荐在正式推理前**先执行 `make_prompt(...)`**，而不是在 `stream()` 里即时传参考音频。  
+原因是 MOSS 的 prompt 构建阶段本身包含参考音频编码，这部分开销会直接影响首个 chunk 延迟。
 
 ### 4.3 使用内存音频创建 Prompt
 
@@ -368,9 +387,56 @@ chunks = engine.stream(
 )
 ```
 
+### 8.3 MOSS-TTS-Nano
+
+| 参数 | 说明 |
+| --- | --- |
+| `mode` | 推理模式。`0` / `voice_clone` 表示单参考音色克隆；`1` / `continuation` 表示 continuation 模式。 |
+| `remove_meaningless_chars` | 是否清理无意义字符。 |
+| `seed` | 随机种子，用于固定采样结果。 |
+| `track_performance` | 是否输出预处理、prefill、首包组成与逐 chunk 的性能日志。 |
+
+`moss-tts-nano-onnx` 当前推荐的两个典型用法：
+
+1. `voice_clone`
+   - 需要参考音频
+   - 适合低资源、纯 CPU 的实时音色克隆
+2. `continuation`
+   - 可用于无参考音频的纯文本合成
+   - 也可在带参考文本和参考音频时继续延续说话风格
+
+示例一：`voice_clone`
+
+```python
+prompt = engine.make_prompt(
+    role_name="moss_voice",
+    audio_path="reference.wav",
+    prompt_text="这是参考音频对应的转写文本。",
+    persist=False,
+)
+
+chunks = engine.stream(
+    text="这是一段 MOSS-TTS-Nano 的实时流式语音合成示例。",
+    role_name=prompt,
+    mode=0,
+    track_performance=True,
+)
+```
+
+示例二：`continuation`
+
+```python
+chunks = engine.stream(
+    text="这是一段不依赖参考音频的 continuation 示例。",
+    role_name=None,
+    mode=1,
+    track_performance=True,
+)
+```
+
 ## 9. 多参考 Prompt
 
-Qwen3 0.6B 和 Qwen3 1.7B 当前只支持单参考音频 prompt。
+Qwen3 0.6B、Qwen3 1.7B 和 MOSS-TTS-Nano 当前只支持单参考音频 prompt。
 
 S2-Pro 支持单参考和多参考 prompt。多参考输入示例：
 
