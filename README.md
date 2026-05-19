@@ -9,7 +9,7 @@
         <img alt="Trial" src="https://img.shields.io/badge/Trial-%E5%85%88%E6%B5%8B%E5%90%8E%E4%B9%B0-228be6?style=for-the-badge">
     </p>
     <p>
-        <a href="doc/usage.md">完整文档</a>&nbsp;&nbsp; | &nbsp;&nbsp;
+        <a href="doc/usage.md">使用文档</a>&nbsp;&nbsp; | &nbsp;&nbsp;
         <a href="#5-快速开始">快速开始</a>&nbsp;&nbsp; | &nbsp;&nbsp;
         <a href="#1-性能基准与资源消耗-performance--resources">性能基准</a>&nbsp;&nbsp; | &nbsp;&nbsp;
         <a href="#2-支持模型矩阵">模型矩阵</a>&nbsp;&nbsp; | &nbsp;&nbsp;
