@@ -400,5 +400,6 @@ uv pip install streamvox-0.1.0-cp310-cp310-manylinux_2_28_x86_64.whl
 ## 9. 参考与致谢
 - [fish speech](https://github.com/fishaudio/fish-speech)
 - [Qwen3 TTS](https://github.com/QwenLM/Qwen3-TTS)
+- [Moss TTS](https://github.com/OpenMOSS/MOSS-TTS-Nano)
 
 感谢开源社区对语音合成、模型推理和音频处理基础设施的持续贡献。
