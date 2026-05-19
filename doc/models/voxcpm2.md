@@ -1,5 +1,6 @@
 # VoxCPM2 系列能力说明
 
+[官方最佳实践文档](https://voxcpm.readthedocs.io/zh-cn/latest/cookbook.html)
 本文档面向希望接入 StreamVox 的开发者，集中说明 `VoxCPM2` 在当前 `voxcpm2-gguf` 接入形态下的能力边界、推荐用法与最佳实践。  
 你可以把它当作 [Usage Guide](../usage.md) 的补充：`usage.md` 侧重 SDK 入口和通用参数，这一页更侧重 **VoxCPM2 适合做什么、当前 StreamVox 具体开放了什么、以及怎样写更容易出效果**。
 
