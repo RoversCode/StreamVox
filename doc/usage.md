@@ -14,6 +14,7 @@ engine = TTSEngine(
     model="qwen3-tts-clone-1.7b-gguf",
     license_key="YOUR_SDK_KEY",
     device="auto",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 ```
@@ -25,6 +26,7 @@ engine = TTSEngine(
 | `model` | 模型名或本地模型 bundle 目录。 |
 | `license_key` | 在线授权 key。为空或无效时进入 trial 模式。 |
 | `device` | 设备选择，支持 `auto`、`cpu`、`gpu`、`gpu:<index>`。 |
+| `llama_backend` | 可选；只控制 GGUF / `llama.cpp` 后端，支持 `cuda`、`vulkan`、`metal`。不传表示自动选择。 |
 | `n_ctx` | 上下文窗口配置。一般不需要手动传入。 |
 | `verify_model_sha256` | 是否校验模型文件 sha256。测试阶段可关闭，正式交付按需要开启。 |
 
@@ -50,6 +52,7 @@ engine = TTSEngine(
     model="qwen3-tts-clone-0.6b-gguf",
     license_key="YOUR_SDK_KEY",
     device="auto",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 ```
@@ -64,6 +67,7 @@ engine = TTSEngine(
     model="qwen3-tts-clone-1.7b-gguf",
     license_key="YOUR_SDK_KEY",
     device="auto",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 ```
@@ -78,6 +82,7 @@ engine = TTSEngine(
     model="s2-pro-4b-gguf",
     license_key="YOUR_SDK_KEY",
     device="auto",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 ```
@@ -92,6 +97,7 @@ engine = TTSEngine(
     model="moss-tts-nano-onnx",
     license_key="YOUR_SDK_KEY",
     device="cpu",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 ```
@@ -312,7 +318,7 @@ deleted = engine.del_roles("gemi_voice")
 
 ## 7. 设备选择
 
-`device` 当前支持字符串形式：
+`device` 当前只表达“是否使用 CPU/GPU 以及 GPU 编号”：
 
 | 参数 | 含义 |
 | --- | --- |
@@ -321,6 +327,15 @@ deleted = engine.del_roles("gemi_voice")
 | `gpu` | 使用默认 GPU，等价于 `gpu:0`。 |
 | `gpu:<index>` | 使用指定 GPU，例如 `gpu:1`。 |
 
+`llama_backend` 当前只影响 GGUF / `llama.cpp` 链路：
+
+| 参数 | 含义 |
+| --- | --- |
+| `None` | 自动选择当前已打包且宿主机可用的 GGUF backend。 |
+| `cuda` | 显式请求 CUDA。 |
+| `vulkan` | 显式请求 Vulkan。 |
+| `metal` | 显式请求 Metal。 |
+
 示例：
 
 ```python
@@ -328,11 +343,17 @@ engine = TTSEngine(
     model="s2-pro-4b-gguf",
     license_key="YOUR_SDK_KEY",
     device="gpu:1",
+    llama_backend="vulkan",
     verify_model_sha256=False,
 )
 ```
 
-注意：当前 GGUF 侧可能使用 llama.cpp Vulkan 后端。Vulkan 的 GPU 编号不一定遵循 `CUDA_VISIBLE_DEVICES` 重映射。多卡机器上建议直接使用 `device="gpu:<物理卡编号>"`。
+注意：
+
+- `llama_backend` 只控制 GGUF / `llama.cpp`，不会影响 ONNX decoder 的 CUDA / DML / CPU 选择。
+- 如果 `device="cpu"`，显式传入的 `llama_backend` 会被忽略，并打印警告日志。
+- 如果显式传入 `llama_backend="cuda"`，但当前宿主机不是 NVIDIA / CUDA 不可用，SDK 会警告并忽略该请求，回到默认自动选择；若 Vulkan 可用，日志会明确说明已默认选择 Vulkan。
+- Vulkan 的 GPU 编号不一定遵循 `CUDA_VISIBLE_DEVICES` 重映射。多卡机器上建议直接使用 `device="gpu:<物理卡编号>"`。
 
 ## 8. 合成参数
 

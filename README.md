@@ -318,6 +318,7 @@ engine = TTSEngine(
     model="qwen3-tts-clone-1.7b-gguf",
     license_key="YOUR_SDK_KEY",
     device="auto",
+    llama_backend=None,
     verify_model_sha256=False,
 )
 
@@ -354,6 +355,7 @@ finally:
 - `license_key` 为空或无效时会进入 trial 模式，输出音频会被限制处理。
 - `verify_model_sha256=False` 可以跳过初始化时的模型文件哈希校验，适合本地测试提速；正式分发场景建议按需要开启。
 - `device="auto"` 会由 runtime 根据当前平台和已打包后端自动选择。
+- `llama_backend` 只控制 GGUF / `llama.cpp` 后端；不传或传 `None` 时保持自动选择。
 
 ## 6. 完整功能文档
 
@@ -387,7 +389,13 @@ uv pip install streamvox-0.1.0-cp310-cp310-manylinux_2_28_x86_64.whl
 
 ### 4.多卡机器应该怎么选 GPU
 
-建议直接使用 `device="gpu:<物理卡编号>"`，例如 `device="gpu:1"`。GGUF/Vulkan 后端的设备编号不一定遵循 `CUDA_VISIBLE_DEVICES` 的重映射。
+建议直接使用 `device="gpu:<物理卡编号>"`，例如 `device="gpu:1"`。如果你还想显式固定 GGUF backend，可以额外传 `llama_backend="vulkan"` 或 `llama_backend="cuda"`。GGUF/Vulkan 后端的设备编号不一定遵循 `CUDA_VISIBLE_DEVICES` 的重映射。
+
+补充说明：
+
+- `llama_backend` 只影响 GGUF / `llama.cpp`，不会改变 ONNX decoder 的 CUDA / DML / CPU 选择。
+- 如果 `device="cpu"`，显式传入的 `llama_backend` 会被忽略，并打印警告日志。
+- 如果显式传入 `llama_backend="cuda"`，但当前宿主机不是 NVIDIA / CUDA 不可用，SDK 会警告并忽略该请求，回到默认自动选择；若 Vulkan 可用，日志会明确说明已默认选择 Vulkan。
 
 ### 5.S2-Pro 和 Qwen3 的 Prompt 能混用吗
 
