@@ -26,7 +26,7 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 先安装 [uv](https://docs.astral.sh/uv/)，创建独立环境：
 
 ```powershell
-uv venv --python 3.12
+uv venv --python 3.12 --managed-python
 .venv\Scripts\Activate.ps1
 ```
 
@@ -52,7 +52,7 @@ python -c "import streamvox; print(streamvox.__version__)"
 ```powershell
 git clone https://github.com/RoversCode/StreamVox.git
 cd StreamVox
-uv sync --extra cpu --group dev
+uv sync --managed-python --extra cpu --group dev
 uv run python -m streamvox.native_assets --project-root .
 ```
 

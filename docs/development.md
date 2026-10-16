@@ -7,14 +7,14 @@
 ## 开发环境
 
 ```powershell
-uv sync --extra cpu --group dev
+uv sync --managed-python --extra cpu --group dev
 uv run python -m streamvox.native_assets --project-root .
 ```
 
 使用 DirectML 和 llama CUDA 时，将同步命令换成：
 
 ```powershell
-uv sync --extra directml --extra llama-cuda --group dev
+uv sync --managed-python --extra directml --extra llama-cuda --group dev
 ```
 
 `cpu`、`directml`、`onnx-cuda` 互斥。SDK 运行环境不需要 Torch；离线参考导出与数值对照工具应使用单独环境，避免改变 SDK 运行依赖。
