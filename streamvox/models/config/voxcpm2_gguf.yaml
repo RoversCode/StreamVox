@@ -1,0 +1,11 @@
+runtime:
+  default_n_ctx: 8192
+  default_mode: 1
+  max_length: 300
+  min_length: 20
+  inference_timesteps: 10
+  cfg_value: 2.0
+  streaming_prefix_len: 4
+  base_n_gpu_layers: -1
+  residual_n_gpu_layers: -1
+  decoder_start_method: spawn

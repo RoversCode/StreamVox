@@ -1,0 +1,25 @@
+# 中文说明：
+# 这是跨平台仓库级换行规范。目标是把“版本库中的文本文件”统一存成 LF，
+# 避免不同开发机的 core.autocrlf 把换行策略变成每个人本地各自为政。
+* text=auto eol=lf
+
+# Windows 命令脚本保留 CRLF，避免在 cmd / powershell 原生命令链里出现兼容性问题。
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+
+# 二进制文件必须显式声明，避免 Git 误做换行归一化。
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.wav binary
+*.mp3 binary
+*.onnx binary
+*.gguf binary
+*.bin binary
+*.npz binary
+*.npy binary
+*.pkl binary
+*.pdf binary
+

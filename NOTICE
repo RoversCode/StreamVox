@@ -1,0 +1,12 @@
+StreamVox
+Copyright 2026 StreamVox Developers
+
+StreamVox 自有代码按 Apache License, Version 2.0 提供，完整条款见 LICENSE。
+
+本项目集成 llama.cpp / ggml 原生运行库，并适配 Qwen3-TTS、Fish Audio S2-Pro、
+VoxCPM2 和 MOSS-TTS-Nano。第三方组件、派生文件及模型权重的版权归各原权利人所有，
+继续适用它们原有的许可证；本声明不将第三方材料重新许可为 Apache-2.0。
+
+组件来源、许可证副本与分发说明见 THIRD_PARTY_NOTICES.md 和 third_party/licenses/。
+模型权重来源及独立许可见 https://github.com/RoversCode/StreamVox/blob/v2.0.0/docs/model-licenses.md。
+SDK 安装包不包含模型权重。

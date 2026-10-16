@@ -1,0 +1,312 @@
+from ..onnx_backend import verify_session_provider
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File    :   stateul_decoder.py
+@Time    :   2026/03/07 17:02:25
+@Author  :   RoversCode
+@Version :   1.0
+@Desc    :   None
+'''
+
+# here put the import lib
+import os
+import onnxruntime as ort
+import numpy as np
+from streamvox_runtime import initialize_nvidia_runtime
+from ...utils.log import logger
+from .schema.decoder_protocol import DecoderState
+
+
+def _env_positive_int(name: str) -> int:
+    """读取正整数环境变量；非法值直接忽略，避免把调参入口变成运行时炸点。"""
+    raw = os.getenv(name, "").strip()
+    if not raw:
+        return 0
+    try:
+        value = int(raw)
+    except ValueError:
+        logger.warning(f"[Decoder Tune] 忽略非法环境变量 {name}={raw!r}")
+        return 0
+    return max(0, value)
+
+
+
+
+class StatefulDecoder:
+    """
+    状态化 ONNX 解码器封装。
+    
+    特点:
+    - 内部自动管理 KV Cache 和历史状态
+    - 支持流式和一次性解码
+    - 外部只需传递 audio_codes 和 is_final
+    - 自动处理 DirectML 加速（如果可用）
+    """
+    
+    # 常量配置
+    NUM_LAYERS = 8
+    NUM_HEADS = 16
+    HEAD_DIM = 64
+    PRE_CONV_WINDOW = 2
+    CONV_HISTORY_WINDOW = 4
+    LOOKAHEAD_FRAMES = 4
+    KV_CACHE_WINDOW = 72
+    SAMPLES_PER_FRAME = 1920
+    
+    def __init__(
+        self,
+        onnx_path: str,
+        device_backend: str = "cpu",
+        device_id: int = 0,
+        chunk_size: int = 12,
+    ):
+        """
+        初始化解码器。
+        
+        Args:
+            onnx_path: 状态化 ONNX 模型路径
+            device_backend: 解码器目标设备类型。支持 cpu / cuda / dml
+            device_id: 目标显卡索引
+            chunk_size: 解码批大小，防止 VRAM 溢出
+        """
+        initialize_nvidia_runtime(consumer="onnx_cuda", required=device_backend == "cuda")
+        self.chunk_size = chunk_size
+        self.device_backend = device_backend
+        self.device_id = device_id
+        
+        if not os.path.exists(onnx_path):
+            raise FileNotFoundError(f"ONNX 模型不存在: {onnx_path}")
+        
+        # 选择 Provider
+        providers = ['CPUExecutionProvider']
+        available = ort.get_available_providers()
+        if device_backend == "dml":
+            if 'DmlExecutionProvider' not in available:
+                raise RuntimeError("DmlExecutionProvider is not available for the requested dml device")
+            providers = [
+                ("DmlExecutionProvider", {"device_id": self.device_id}),
+                "CPUExecutionProvider",
+            ]
+        elif device_backend == "cuda":
+            if 'CUDAExecutionProvider' in available:
+                providers = [
+                    ("CUDAExecutionProvider", {"device_id": self.device_id}),
+                    "CPUExecutionProvider",
+                ]
+            else:
+                logger.warning("CUDAExecutionProvider is unavailable, decoder falls back to CPUExecutionProvider")
+        elif device_backend != "cpu":
+            raise ValueError(f"unsupported decoder device backend: {device_backend}")
+
+        sess_opts = ort.SessionOptions()
+        sess_opts.log_severity_level = 3
+        sess_opts.add_session_config_entry("session.intra_op.allow_spinning", "0")
+        sess_opts.add_session_config_entry("session.inter_op.allow_spinning", "0")
+        sess_opts.graph_optimization_level = ort.GraphOptimizationLevel.ORT_ENABLE_ALL
+        # CPU 解码的瓶颈主要在 ORT 这段，因此这里开放环境变量用于快速压测。
+        # 正式默认值仍走 ORT 自己的策略，只有用户显式覆盖时才改线程。
+        intra_threads = _env_positive_int("STREAMVOX_DECODER_ORT_INTRA_THREADS")
+        inter_threads = _env_positive_int("STREAMVOX_DECODER_ORT_INTER_THREADS")
+        if intra_threads > 0:
+            sess_opts.intra_op_num_threads = intra_threads
+        if inter_threads > 0:
+            sess_opts.inter_op_num_threads = inter_threads
+        sess_opts.execution_mode = ort.ExecutionMode.ORT_SEQUENTIAL
+
+        self.sess = ort.InferenceSession(onnx_path, sess_options=sess_opts, providers=providers)
+        verify_session_provider(self.sess, providers)
+        
+        # 动态检测输入类型 (跳过第一个整数类型的 audio_codes)
+        float_input = next(i for i in self.sess.get_inputs() if "float" in i.type)
+        self.dtype = np.float16 if "float16" in float_input.type else np.float32
+        
+        self.output_names = [out.name for out in self.sess.get_outputs()]  # onnx的输出
+        
+        # 获取实际使用的 provider
+        self.active_provider = self.sess.get_providers()[0]
+        if device_backend == "cpu":
+            logger.info(
+                "[Decoder Tune] ORT CPU 配置: "
+                f"intra_threads={intra_threads or 'auto'}, "
+                f"inter_threads={inter_threads or 'auto'}"
+            )
+        
+        # 用虚假的历史和code预热
+        warmup_codes = np.zeros((self.chunk_size, 16), dtype=np.int64)
+        self.decode(warmup_codes, state=self.create_state(72), is_final=True)
+        device_label = "CPU"
+        if "CUDA" in self.active_provider:
+            device_label = "CUDA:0"
+        elif "Dml" in self.active_provider:
+            device_label = "DML:0"
+        precision_label = "FP16" if self.dtype == np.float16 else "FP32"
+        logger.info("✅ [qwen3] [Decoder] [%s] [%s]", device_label, precision_label)
+        
+    def create_state(self, hostory_num = 0):
+        """
+        创建一个解码器状态。可指定历史记忆数量。
+        
+        Returns:
+            DecoderState: 包含初始化的状态对象
+        """
+        
+        if hostory_num != 0:
+            pre_conv_history = np.zeros((1, 512, 2), dtype=self.dtype)
+            latent_buffer = np.zeros((1, 1024, 4), dtype=self.dtype)
+            conv_history = np.zeros((1, 1024, 4), dtype=self.dtype)
+        else:
+            pre_conv_history = np.zeros((1, 512, 0), dtype=self.dtype)
+            latent_buffer = np.zeros((1, 1024, 0), dtype=self.dtype)
+            conv_history = np.zeros((1, 1024, 0), dtype=self.dtype)
+        
+        # KV Cache: [NUM_LAYERS] 个 Key + [NUM_LAYERS] 个 Value
+        kv_cache = []
+        for _ in range(self.NUM_LAYERS):
+            # Key
+            kv_cache.append(np.zeros((1, self.NUM_HEADS, max(0,hostory_num), self.HEAD_DIM), dtype=self.dtype))
+            # Value 
+            kv_cache.append(np.zeros((1, self.NUM_HEADS, max(0,hostory_num), self.HEAD_DIM), dtype=self.dtype))
+            
+        return DecoderState(
+            pre_conv_history=pre_conv_history,
+            latent_buffer=latent_buffer,
+            conv_history=conv_history,
+            kv_cache=kv_cache,
+            skip_samples=0
+        )
+        
+    def _build_state_from_outputs(self, outputs) -> "DecoderState":
+        """从 ONNX 输出构建 DecoderState 对象"""
+        new_state = DecoderState(
+            pre_conv_history=outputs[2],
+            latent_buffer=outputs[3],
+            conv_history=outputs[4],
+            kv_cache=[],
+            skip_samples=0 # 默认不携带跳过计数，由外部手动设置
+        )
+        
+        # 收集 KV Cache
+        # 输出顺序: Key 块 (5 ~ 5+N) 和 Value 块 (5+N ~ 5+2N)
+        # 我们按交替顺序存入 list: k0, v0, k1, v1 ... 以匹配 feed 循环
+        new_kv = []
+        base_idx = 5
+        num_layers = self.NUM_LAYERS
+        
+        for i in range(num_layers):
+            k = outputs[base_idx + i]
+            v = outputs[base_idx + num_layers + i]
+            new_kv.append(k)
+            new_kv.append(v)
+            
+        new_state.kv_cache = new_kv
+        return new_state
+        
+    
+    def _decode(self, audio_codes: np.ndarray, state: DecoderState = None, is_final: bool = False):
+        """
+        底层原子解码 (Stateless Decode)。一次最多建议 self.chunk_size 帧。
+        
+        Args:
+            audio_codes: 音频码 [N, 16]
+            state: 上下文状态 (DecoderState)。如果为 None，则从零开始。
+            is_final: 是否结束
+            
+        Returns:
+            (audio, new_state): 
+                audio: 生成的波形
+                new_state: 更新后的状态对象
+        """
+        if state is None:
+            state = self.create_state()
+            
+        skip_counter = state.skip_samples
+
+        # 输入规范化
+        if audio_codes.ndim == 1:
+             audio_codes = audio_codes.reshape(-1, 16)
+        if audio_codes.ndim == 2:
+            audio_codes = audio_codes[np.newaxis, ...]  # [1, N, 16]
+        
+        audio_codes = audio_codes.astype(np.int64)
+        n_frames = audio_codes.shape[1]
+        
+        if n_frames == 0:
+            return np.array([], dtype=np.float32), state
+        
+        # 构建输入 feed dict
+        feed = {
+            "audio_codes": audio_codes,
+            "is_last": np.array([1.0 if is_final else 0.0], dtype=self.dtype),
+            "pre_conv_history": state.pre_conv_history,
+            "latent_buffer": state.latent_buffer,
+            "conv_history": state.conv_history,
+        }
+        
+        # KV Cache 解包: 列表顺序假定为 k0, v0, k1, v1 ...
+        for i in range(self.NUM_LAYERS):
+            feed[f"past_key_{i}"] = state.kv_cache[2*i]
+            feed[f"past_value_{i}"] = state.kv_cache[2*i + 1]
+        
+        # 执行推理
+        outputs = self.sess.run(self.output_names, feed)
+        
+        # 解包输出
+        final_wav = outputs[0]        # [1, num_samples]
+        valid_samples = int(outputs[1][0])  # 有效音频数据长度
+        
+        # 构建新状态
+        new_state = self._build_state_from_outputs(outputs)
+        
+        # 提取有效音频
+        audio = final_wav[0, :valid_samples] if valid_samples > 0 else np.array([], dtype=np.float32)
+        
+        # 处理历史采样点的抵消 (用于过滤注入状态时的初始残留音频)
+        if skip_counter > 0 and len(audio) > 0:
+            if len(audio) <= skip_counter:
+                skip_counter -= len(audio)
+                audio = np.array([], dtype=np.float32)
+            else:
+                audio = audio[skip_counter:]
+                skip_counter = 0
+                
+        # 当前 ONNX 流式导出会把最后 LOOKAHEAD_FRAMES 帧 latent 保存在 latent_buffer 中，
+        # 下一次 decode 会将其拼到 new_hidden 前面重新进入 upsample/decoder。
+        # final=True 时这些帧已经被输出过；若 final_state 被复用为下一段上下文，
+        # 下一次 waveform 开头会再次包含这些帧对应的音频位置，因此只裁掉输出，
+        # 不清空 latent_buffer/conv_history/kv_cache。
+        new_state.skip_samples = 4 * 1920 if is_final else skip_counter
+        
+        return audio.astype(np.float32), new_state
+    
+    def decode(self, audio_codes: np.ndarray, state: DecoderState = None, is_final: bool = False):
+        """
+        [对外封装] 对多于 self.chunk_size 帧的 codes 分批解码，防止 VRAM 溢出。
+        """
+        # 输入规范化获取长度
+        if audio_codes.ndim == 2:
+            n_frames = audio_codes.shape[0]
+        elif audio_codes.ndim == 3:
+            n_frames = audio_codes.shape[1]
+        else:
+            n_frames = len(audio_codes)
+
+        if n_frames <= self.chunk_size:  # final chunk
+            return self._decode(audio_codes, state=state, is_final=is_final)
+            
+        # 批量解码逻辑
+        chunk_size = self.chunk_size
+        full_audio = []
+        curr_state = state
+        
+        for i in range(0, n_frames, chunk_size):
+            chunk = audio_codes[i:i+chunk_size]
+            is_last_chunk = (i + chunk_size >= n_frames)
+            
+            # 只有最后一个分片才接受外部的 is_final 状态
+            chunk_is_final = is_final if is_last_chunk else False
+            
+            chunk_audio, curr_state = self._decode(chunk, state=curr_state, is_final=chunk_is_final)
+            full_audio.append(chunk_audio)
+            
+        return np.concatenate(full_audio), curr_state

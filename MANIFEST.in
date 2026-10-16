@@ -1,0 +1,18 @@
+include README.md LICENSE NOTICE THIRD_PARTY_NOTICES.md
+include pyproject.toml setup.py MANIFEST.in uv.lock
+recursive-include streamvox *.py *.yaml *.yml *.dll
+include streamvox/bin/native-manifest.json
+recursive-include streamvox_runtime *.py
+recursive-include tests *.py
+recursive-include tools *.py
+recursive-include scripts *.sh *.ps1
+recursive-include docs *.md *.png *.svg
+recursive-include assets *.png *.svg
+recursive-include example *.py *.txt
+recursive-include third_party/licenses *.txt
+prune streamvox_release_github
+prune .artifacts
+prune .worktrees
+prune streamvox/licensing
+prune streamvox/data
+global-exclude *.pyc *.pyo *.pyd *.so *.pem *.wav *.mp3 *.flac

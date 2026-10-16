@@ -1,0 +1,51 @@
+#!/usr/bin/env python
+# -*- encoding: utf-8 -*-
+'''
+@File    :   decoder_protocol.py
+@Time    :   2026/03/07 17:08:29
+@Author  :   RoversCode
+@Version :   1.0
+@Desc    :   None
+'''
+
+# here put the import lib
+from dataclasses import dataclass, field
+from typing import Optional, Union, List
+import numpy as np
+
+
+
+@dataclass
+class DecoderState:
+    """解码器的核心记忆 (不跨进程传输，仅在 Worker 内部流转)"""
+    pre_conv_history: Optional[np.ndarray] = None
+    latent_buffer: Optional[np.ndarray] = None
+    conv_history: Optional[np.ndarray] = None
+    kv_cache: List[np.ndarray] = field(default_factory=list)
+    skip_samples: int = 0  # 待抵消的采样点数 (用于对齐记忆注入时的残留)
+
+@dataclass
+class DecoderSession:
+    """会话上下文：维护状态与索引"""
+    state: Optional[DecoderState] = None
+    index: int = 0
+
+@dataclass
+class DecodeRequest:
+    """主进程 -> DecoderWorker"""
+    task_id: Union[str, int]
+    msg_type: str = "DECODE"  # DECODE, DECODE_CHUNK, STOP, RESET
+    codes: Optional[np.ndarray] = None
+    is_final: bool = False
+    state: Optional["DecoderState"] = None  # 用于初始化解码器状态
+
+@dataclass
+class DecoderResponse:
+    """DecoderWorker -> Proxy"""
+    task_id: Union[str, int]
+    msg_type: str = "AUDIO"   # AUDIO, FINISH, READY, ERROR
+    index: int = 0            # 当前片段在任务中的序号 (从 0 开始)
+    audio: Optional[np.ndarray] = None
+    compute_time: float = 0.0
+    state: Optional["DecoderState"] = None  # 在 FINISH 消息中携带最终记忆
+    recv_time: float = 0.0    # Proxy 接收到消息的时间 (由 Proxy 填充)

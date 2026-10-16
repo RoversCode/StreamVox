@@ -1,12 +1,24 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "streamvox"
-version = "1.2.3"
-description = "StreamVox SDK skeleton with online licensing support."
+version = "2.0.0"
+description = "Open-source streaming text-to-speech SDK with lightweight GGUF and ONNX runtimes."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.12,<3.13"
+license = "Apache-2.0"
+license-files = ["LICENSE", "NOTICE", "THIRD_PARTY_NOTICES.md", "third_party/licenses/*.txt"]
+authors = [{name = "StreamVox Developers"}]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Operating System :: Microsoft :: Windows",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Multimedia :: Sound/Audio :: Speech",
+]
 dependencies = [
     "cn2an==0.5.23",
-    "cryptography>=45.0.0,<46.0.0",
     "gguf==0.18.0",
     "hyperpyyaml>=1.2.3",
     "inflect==7.5.0",
@@ -15,34 +27,68 @@ dependencies = [
     "modelscope==1.30.0",
     "munch==4.0.0",
     "numpy>=2.2.0,<3.0.0",
-    "onnxruntime-gpu==1.21.1; sys_platform == 'linux'",
+    "requests>=2.32,<3",
     "soundfile==0.13.1",
     "srt==3.5.3",
+    "sentencepiece>=0.1.99",
     "tokenizers>=0.22.2",
-    "torch==2.6.0",
-    "torchaudio==2.6.0",
-    "torchvision==0.21.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/RoversCode/StreamVox"
+Repository = "https://github.com/RoversCode/StreamVox"
+Issues = "https://github.com/RoversCode/StreamVox/issues"
+
+[project.scripts]
+streamvox-release-plan = "streamvox.build_release:main"
+streamvox-release-artifacts = "streamvox.release_artifacts:main"
+streamvox-release-matrix = "streamvox.release_matrix:main"
+streamvox-package-release = "streamvox.package_release:main"
+streamvox-model-manifest = "streamvox.model_bundle:main"
+streamvox-native-assets = "streamvox.native_assets:main"
 
 [project.optional-dependencies]
-windows-cuda = [
-    "onnxruntime-gpu==1.21.1; sys_platform == 'win32'",
+llama-cuda = [
+    "nvidia-cuda-runtime-cu12==12.4.99",
+    "nvidia-cublas-cu12==12.4.2.65",
 ]
-windows-dml = [
-    "onnxruntime-directml==1.21.1; sys_platform == 'win32'",
+onnx-cuda = [
+    "onnxruntime-gpu==1.21.1",
+    "nvidia-cuda-runtime-cu12==12.4.99",
+    "nvidia-cublas-cu12==12.4.2.65",
+    "nvidia-cudnn-cu12==9.1.0.70",
+    "nvidia-cufft-cu12==11.2.0.44",
+    "nvidia-curand-cu12==10.3.5.119",
+    "nvidia-cuda-nvrtc-cu12==12.4.99",
 ]
-windows-cpu = [
-    "onnxruntime==1.21.1; sys_platform == 'win32'",
+directml = ["onnxruntime-directml==1.21.1; sys_platform == 'win32'"]
+cpu = ["onnxruntime==1.21.1"]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "build>=1.2,<2", "setuptools>=77", "wheel>=0.45", "twine>=6,<7"]
+
+[tool.uv]
+conflicts = [
+    [{ extra = "onnx-cuda" }, { extra = "directml" }, { extra = "cpu" }],
+]
+constraint-dependencies = [
+    "numpy==2.4.6; python_version == '3.12'",
+    "scipy==1.17.1; python_version == '3.12'",
+    "numba==0.65.1; python_version == '3.12'",
+    "llvmlite==0.47.0; python_version == '3.12'",
+    "tokenizers==0.22.2; python_version == '3.12'",
 ]
 
-[[tool.uv.index]]
-name = "pytorch-cu124"
-url = "https://download.pytorch.org/whl/cu124"
-explicit = true
+[tool.setuptools]
+include-package-data = true
 
-[tool.uv.sources]
-torch = { index = "pytorch-cu124" }
-torchaudio = { index = "pytorch-cu124" }
-torchvision = { index = "pytorch-cu124" }
+[tool.setuptools.packages.find]
+include = ["streamvox", "streamvox.*", "streamvox_runtime", "streamvox_runtime.*"]
 
-
+[tool.setuptools.package-data]
+# 运行实现以可读源码发布，只有第三方原生运行库作为平台资源随包分发。
+"streamvox" = [
+    "bin/*.so", "bin/*.so.*", "bin/*.dll", "bin/*.dylib",
+    "bin/native-manifest.json",
+    "models/config/*.yaml", "models/config/*.yml",
+]

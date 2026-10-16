@@ -1,0 +1,45 @@
+runtime:
+  sample_rate: 24000
+  chunk_size: 12
+  default_n_ctx: 4096
+  min_n_ctx: 4096
+  max_n_ctx: 32768
+  max_length: 300
+  min_length: 30
+  talker_n_gpu_layers: -1
+  predictor_n_gpu_layers: -1
+  # CPU 模式下 llama 线程数。设为 0 表示启用自动拓扑调优。
+  llama_cpu_threads: 0
+  # CPU 模式下 llama batch 线程数。设为 0 表示启用自动拓扑调优。
+  llama_cpu_threads_batch: 0
+  # CPU 模式下 llama 的 NUMA 策略。
+  # 可选：disabled / distribute / isolate / numactl / mirror
+  llama_cpu_numa_strategy: disabled
+  decoder_start_method: spawn
+
+sample_config:
+  # Talker
+  temperature: 0.9
+  top_p: 1.0
+  top_k: 50
+  min_p: 0.0
+  repeat_penalty: 1.05
+  frequency_penalty: 0.0
+  presence_penalty: 0.0
+  penalty_last_n: 128
+  seed: 42
+
+  # Predictor
+  sub_temperature: 0.9
+  sub_top_p: 1.0
+  sub_top_k: 50
+  sub_seed: 42
+
+
+paths:
+  talker_filename: qwen3_tts_talker.q5_k.gguf
+  predictor_filename: qwen3_tts_predictor.q8_0.gguf
+  decoder_filename: qwen3_tts_decoder.fp16.onnx
+  codec_encoder_filename: qwen3_tts_codec_encoder.fp16.onnx
+  speaker_encoder_filename: qwen3_tts_speaker_encoder.fp16.onnx
+  tokenizer_filename: tokenizer.json

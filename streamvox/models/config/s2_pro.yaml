@@ -1,0 +1,35 @@
+runtime:
+  sample_rate: 44100
+  chunk_size: 21
+  default_n_ctx: 12288
+  min_n_ctx: 4096
+  max_n_ctx: 32768
+  max_length: 400
+  min_length: 40
+
+  llama_cpu_numa_strategy: disabled
+  decoder_start_method: spawn
+
+codec:
+  frame_length: 2048
+  hop_length: 512
+  num_codebooks: 10
+  stream_code_frames: 21
+
+sample_config:
+  generation:
+    temperature: 0.9
+    top_p: 0.8
+    top_k: 30
+  ras:
+    temperature: 1.0
+    top_p: 0.9
+    top_k: 30
+
+paths:
+  slow_filename: slow_hf_q8_0.gguf
+  fast_filename: fast_hf_q8_0.gguf
+  codec_encode_filename: codec_encode.onnx
+  codec_decode_filename: codec_decode_stream.onnx
+  codec_meta_filename: codec_true_streaming_meta.json
+  tokenizer_dirname: tokenizer
