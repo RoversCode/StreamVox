@@ -2,11 +2,13 @@
 
 [返回 README](../README.md) · [使用文档](usage.md) · [模型适配](model-adapter-guide.md)
 
-2.0.0 的发行目标为 Windows x64 / CPython 3.12。Python 模块以可读源码分发，wheel tag 为 `cp312-none-win_amd64`。构建同时生成带原生 DLL 的 sdist，以便重建安装包；公开 Git 仓库不存放 DLL。
+2.0.0 的发行目标为 Windows x64 / CPython 3.12。Python 模块以可读源码分发，wheel tag 为 `cp312-none-win_amd64`。其中 `none` 表示 Python 模块不依赖特定扩展 ABI；包内包含 Windows 原生动态库，因此仍限 Windows x64 / CPython 3.12。构建同时生成带原生 DLL 的 sdist，以便重建安装包；公开 Git 仓库不存放 DLL。
 
 ## 开发环境
 
 ```powershell
+git clone https://github.com/RoversCode/StreamVox.git
+cd StreamVox
 uv sync --managed-python --extra cpu --group dev
 uv run python -m streamvox.native_assets --project-root .
 ```

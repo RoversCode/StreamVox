@@ -1,0 +1,517 @@
+{
+  "schema_version": 1,
+  "measured_on": "2026-10-16",
+  "sdk": {
+    "version": "2.0.0",
+    "installation": "Published wheel installed into isolated Python virtual environments; Python isolated mode; no source-tree imports",
+    "wheel_filename": "streamvox-2.0.0-cp312-none-win_amd64.whl",
+    "wheel_sha256": "e6d52851088de43b08e6f9a000dbedbc15259089031022e8dfbcd789636b4ba3",
+    "python_version": "3.12.13",
+    "numpy_version": "2.4.6",
+    "onnxruntime_gpu_version": "1.21.1",
+    "onnxruntime_cpu_version": "1.21.1"
+  },
+  "hardware": {
+    "os": "Microsoft Windows 11 专业版",
+    "os_version": "10.0.26200",
+    "cpu": "13th Gen Intel(R) Core(TM) i7-13700KF",
+    "physical_cores": 16,
+    "logical_processors": 24,
+    "system_ram_bytes": 68554768384,
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_memory_mib": 24564,
+    "nvidia_driver": "610.88"
+  },
+  "input": {
+    "target_text": "你好，欢迎使用StreamVox。这是一段本地流式语音合成示例，我们希望让自然的声音更快地来到你身边。",
+    "s2_text_prefix": "<|speaker:0|>",
+    "reference": {
+      "count": 1,
+      "sha256": "e2e0a030ac2458d3bfced27c02d41ae74bd9487892c5a196d194f21a65ba43ce",
+      "audio_seconds": 6.57603125,
+      "sample_rate": 192000,
+      "channels": 1,
+      "transcript": "所以今天我想要讨论另外两个问题，很相似。可是却不一样的问题，我相信自己是谁。",
+      "public_audio_available": false
+    }
+  },
+  "methodology": {
+    "clock": "time.perf_counter",
+    "excluded": [
+      "engine initialization",
+      "make_prompt",
+      "one complete warmup synthesis"
+    ],
+    "first_chunk": "before engine.stream call to first nonempty float32 audio chunk arrival",
+    "total": "before engine.stream call through generator exhaustion; includes chunk validation",
+    "warmup_runs": 1,
+    "measured_runs": 3,
+    "aggregate": "median of each per-run metric",
+    "rtf": "total_inference_seconds / audio_seconds for each run",
+    "execution": "Separate process for each case; all cases run sequentially; no concurrent GPU benchmark",
+    "mode": "Single-reference voice cloning for every result",
+    "generation_options": "Model defaults except explicit mode; MOSS CPU and CUDA both use seed=42",
+    "backend_check": "Explicit requested backends must equal engine.actual_backends; no silent fallback",
+    "gpu_scope": "CUDA denotes requested GGUF/ONNX backend; individual CPU encoder sessions are listed in actual_backends where applicable",
+    "validation": "Every chunk must be a nonempty finite float32 array; concatenated waveform must be nonzero",
+    "realtime_speedup": "1 / median_rtf",
+    "network": "Models already cached; HTTP requests rejected during each benchmark"
+  },
+  "limitations": [
+    "Single Chinese sentence and one private reference recording; latency and RTF depend on text, voice, duration, backend, and hardware.",
+    "Audio duration is measured from actual output samples for every run. The benchmark verifies complete stream exhaustion and waveform validity, not transcription accuracy or speech quality.",
+    "Each reported metric is its own three-run median; median total inference time divided by median audio duration need not equal median per-run RTF.",
+    "Memory and GPU memory peaks were not measured."
+  ],
+  "results": [
+    {
+      "case": "qwen3-0.6b-cuda",
+      "model": "qwen3-tts-clone-0.6b-gguf",
+      "started_at_utc": "2026-10-16T07:10:37.728257+00:00",
+      "finished_at_utc": "2026-10-16T07:10:50.314271+00:00",
+      "manifest_sha256": "b8afc82e18525ecd9be1469c21db15c92a57ce804430930bc905243b83732336",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {},
+      "requested_backends": {
+        "llama": "cuda",
+        "onnx": "cuda"
+      },
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.speaker_encoder.sess": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.codec_encoder.sess": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 24000,
+      "median": {
+        "first_chunk_seconds": 0.18616280000424013,
+        "total_inference_seconds": 1.36063930002274,
+        "audio_seconds": 9.2,
+        "rtf": 0.14789557608942827
+      },
+      "realtime_speedup": 6.761527467159182,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.20940100000007078,
+          "total_inference_seconds": 1.4144136999966577,
+          "audio_seconds": 9.2,
+          "rtf": 0.1537406195648541,
+          "chunks": 10,
+          "audio_shape": [
+            220800
+          ],
+          "peak": 0.86767578125,
+          "audio_float32_sha256": "2fc8a9ebf51802a2b402fa3977aed6f1d3213805e896f60835d609e8cca9d91b"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.18616280000424013,
+          "total_inference_seconds": 1.36063930002274,
+          "audio_seconds": 9.2,
+          "rtf": 0.14789557608942827,
+          "chunks": 10,
+          "audio_shape": [
+            220800
+          ],
+          "peak": 0.86767578125,
+          "audio_float32_sha256": "2fc8a9ebf51802a2b402fa3977aed6f1d3213805e896f60835d609e8cca9d91b"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.1730692999844905,
+          "total_inference_seconds": 1.3522177999839187,
+          "audio_seconds": 9.2,
+          "rtf": 0.14698019565042594,
+          "chunks": 10,
+          "audio_shape": [
+            220800
+          ],
+          "peak": 0.86767578125,
+          "audio_float32_sha256": "2fc8a9ebf51802a2b402fa3977aed6f1d3213805e896f60835d609e8cca9d91b"
+        }
+      ]
+    },
+    {
+      "case": "qwen3-1.7b-cuda",
+      "model": "qwen3-tts-clone-1.7b-gguf",
+      "started_at_utc": "2026-10-16T07:11:12.609855+00:00",
+      "finished_at_utc": "2026-10-16T07:11:25.686699+00:00",
+      "manifest_sha256": "83210f323ee0bb97de624ee86f8ad4a58db82bc8ac88bf67b91c19fbacd714aa",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {},
+      "requested_backends": {
+        "llama": "cuda",
+        "onnx": "cuda"
+      },
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.speaker_encoder.sess": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.codec_encoder.sess": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 24000,
+      "median": {
+        "first_chunk_seconds": 0.18668300000717863,
+        "total_inference_seconds": 1.2970270999940112,
+        "audio_seconds": 8.16,
+        "rtf": 0.15894939950907
+      },
+      "realtime_speedup": 6.291310335796127,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.20926040000631474,
+          "total_inference_seconds": 1.3210819000087213,
+          "audio_seconds": 8.16,
+          "rtf": 0.16189729166773545,
+          "chunks": 9,
+          "audio_shape": [
+            195840
+          ],
+          "peak": 0.88330078125,
+          "audio_float32_sha256": "7c0b94b37a5816ab1a29bb42663625a4a22b729f0a8c5b1e232ee03670bcffee"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.1846287999942433,
+          "total_inference_seconds": 1.2970270999940112,
+          "audio_seconds": 8.16,
+          "rtf": 0.15894939950907,
+          "chunks": 9,
+          "audio_shape": [
+            195840
+          ],
+          "peak": 0.88330078125,
+          "audio_float32_sha256": "7c0b94b37a5816ab1a29bb42663625a4a22b729f0a8c5b1e232ee03670bcffee"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.18668300000717863,
+          "total_inference_seconds": 1.2545079999836162,
+          "audio_seconds": 8.16,
+          "rtf": 0.15373872548818826,
+          "chunks": 9,
+          "audio_shape": [
+            195840
+          ],
+          "peak": 0.88330078125,
+          "audio_float32_sha256": "7c0b94b37a5816ab1a29bb42663625a4a22b729f0a8c5b1e232ee03670bcffee"
+        }
+      ]
+    },
+    {
+      "case": "s2-pro-cuda",
+      "model": "s2-pro-4b-gguf",
+      "started_at_utc": "2026-10-16T07:11:55.885577+00:00",
+      "finished_at_utc": "2026-10-16T07:12:22.906648+00:00",
+      "manifest_sha256": "5811f9544c1f05d451030268f3aec3d2bdee8d45427be6ebc37a13ac08a9ef6f",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {},
+      "requested_backends": {
+        "llama": "cuda",
+        "onnx": "cuda"
+      },
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.codec_encoder.encode_session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 44100,
+      "median": {
+        "first_chunk_seconds": 0.400690400012536,
+        "total_inference_seconds": 3.031483800004935,
+        "audio_seconds": 8.730702947845804,
+        "rtf": 0.34722104487049543
+      },
+      "realtime_speedup": 2.8800097654592753,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.400690400012536,
+          "total_inference_seconds": 3.031483800004935,
+          "audio_seconds": 8.730702947845804,
+          "rtf": 0.34722104487049543,
+          "chunks": 9,
+          "audio_shape": [
+            385024
+          ],
+          "peak": 0.9411765336990356,
+          "audio_float32_sha256": "63dde744f0a8cb97a3bd2ddb4408d315438802151e5d0f23d5a7fe4648aaef9f"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.4045607000007294,
+          "total_inference_seconds": 3.0187353000219446,
+          "audio_seconds": 8.730702947845804,
+          "rtf": 0.34576085317010824,
+          "chunks": 9,
+          "audio_shape": [
+            385024
+          ],
+          "peak": 0.9411765336990356,
+          "audio_float32_sha256": "63dde744f0a8cb97a3bd2ddb4408d315438802151e5d0f23d5a7fe4648aaef9f"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.39828779999515973,
+          "total_inference_seconds": 3.0350105999968946,
+          "audio_seconds": 8.730702947845804,
+          "rtf": 0.34762499859713436,
+          "chunks": 9,
+          "audio_shape": [
+            385024
+          ],
+          "peak": 0.9411765336990356,
+          "audio_float32_sha256": "63dde744f0a8cb97a3bd2ddb4408d315438802151e5d0f23d5a7fe4648aaef9f"
+        }
+      ]
+    },
+    {
+      "case": "voxcpm2-cuda",
+      "model": "voxcpm2-gguf",
+      "started_at_utc": "2026-10-16T07:12:31.807798+00:00",
+      "finished_at_utc": "2026-10-16T07:12:52.933967+00:00",
+      "manifest_sha256": "870c02de2b85042b1aaa285c81893ac640ddc90b686ea743d185b57961d80e31",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {
+        "mode": "ref"
+      },
+      "requested_backends": {
+        "llama": "cuda",
+        "onnx": "cuda"
+      },
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.input_builder.locenc_session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.input_builder.audio_encoder_session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.locdit_patch_runtime.locdit_runner.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 48000,
+      "median": {
+        "first_chunk_seconds": 0.11340379997272976,
+        "total_inference_seconds": 2.7532800000044517,
+        "audio_seconds": 8.0,
+        "rtf": 0.34416000000055647
+      },
+      "realtime_speedup": 2.905625290557831,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.14479120000032708,
+          "total_inference_seconds": 3.194560999982059,
+          "audio_seconds": 8.8,
+          "rtf": 0.3630182954525067,
+          "chunks": 55,
+          "audio_shape": [
+            422400
+          ],
+          "peak": 0.95458984375,
+          "audio_float32_sha256": "5a9c54675a207be12f0ff21f7bbf11867788eb4a4f64560bf27320222d78c06a"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.09208260002196766,
+          "total_inference_seconds": 2.7532800000044517,
+          "audio_seconds": 8.0,
+          "rtf": 0.34416000000055647,
+          "chunks": 50,
+          "audio_shape": [
+            384000
+          ],
+          "peak": 0.97265625,
+          "audio_float32_sha256": "7e0681f11c8debb98c98de6ea8ddd30b7910a5b5bf9a3f8345d66404a8633d78"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.11340379997272976,
+          "total_inference_seconds": 2.470232199993916,
+          "audio_seconds": 7.2,
+          "rtf": 0.3430878055547105,
+          "chunks": 45,
+          "audio_shape": [
+            345600
+          ],
+          "peak": 0.9775390625,
+          "audio_float32_sha256": "70b927c9ae267b9f7a184aebc9c4c0ad51664ce4c135702dfb5844fde9676bdc"
+        }
+      ]
+    },
+    {
+      "case": "moss-cuda-seed42",
+      "model": "moss-tts-nano-onnx",
+      "started_at_utc": "2026-10-16T07:14:28.886991+00:00",
+      "finished_at_utc": "2026-10-16T07:14:43.299846+00:00",
+      "manifest_sha256": "6df440107a2c79633ea2e0014b78827dc3c4a1f4f6fea7f5385d74d98784774f",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {
+        "seed": 42,
+        "mode": "voice_clone"
+      },
+      "requested_backends": {
+        "llama": null,
+        "onnx": "cuda"
+      },
+      "actual_backends": {
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.core.llm.encoder.codec_encode_session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 48000,
+      "median": {
+        "first_chunk_seconds": 0.08261869999114424,
+        "total_inference_seconds": 2.156890700018266,
+        "audio_seconds": 9.2,
+        "rtf": 0.2344446413063333
+      },
+      "realtime_speedup": 4.265399261966351,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.08413860001019202,
+          "total_inference_seconds": 2.1753398000146262,
+          "audio_seconds": 9.2,
+          "rtf": 0.2364499782624594,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 1.0705556869506836,
+          "audio_float32_sha256": "10fc99ca01b2c3ba4a8dead8a0f136db868b84ea4b2755bb742b4ad05136351e"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.08261869999114424,
+          "total_inference_seconds": 2.1492762000125367,
+          "audio_seconds": 9.2,
+          "rtf": 0.23361697826223227,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 1.070462703704834,
+          "audio_float32_sha256": "4c8a6720f2aa9b2685c4df63a32bf946eef608f1fdc9b8a2ebcf1c26edec2ef5"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.08120160002727062,
+          "total_inference_seconds": 2.156890700018266,
+          "audio_seconds": 9.2,
+          "rtf": 0.2344446413063333,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 1.070462703704834,
+          "audio_float32_sha256": "4c8a6720f2aa9b2685c4df63a32bf946eef608f1fdc9b8a2ebcf1c26edec2ef5"
+        }
+      ]
+    },
+    {
+      "case": "moss-cpu-seed42",
+      "model": "moss-tts-nano-onnx",
+      "started_at_utc": "2026-10-16T07:15:04.398509+00:00",
+      "finished_at_utc": "2026-10-16T07:15:19.635171+00:00",
+      "manifest_sha256": "6df440107a2c79633ea2e0014b78827dc3c4a1f4f6fea7f5385d74d98784774f",
+      "mode": "single_reference_voice_clone",
+      "stream_options": {
+        "seed": 42,
+        "mode": "voice_clone"
+      },
+      "requested_backends": {
+        "llama": null,
+        "onnx": "cpu"
+      },
+      "actual_backends": {
+        "onnx": "cpu",
+        "onnx_sessions": {
+          "runtime.core.llm.encoder.codec_encode_session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "sample_rate": 48000,
+      "median": {
+        "first_chunk_seconds": 0.09041410000645556,
+        "total_inference_seconds": 2.414821199985454,
+        "audio_seconds": 9.2,
+        "rtf": 0.2624805652158102
+      },
+      "realtime_speedup": 3.80980587716201,
+      "runs": [
+        {
+          "run": 1,
+          "first_chunk_seconds": 0.09080099998391233,
+          "total_inference_seconds": 2.4439904000028037,
+          "audio_seconds": 9.2,
+          "rtf": 0.26565113043508737,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 0.9823625087738037,
+          "audio_float32_sha256": "0ffc2d3ce78bc241b03bfdff55a3f578be4bc3e39141d23f67216797e2b754b4"
+        },
+        {
+          "run": 2,
+          "first_chunk_seconds": 0.08850089999032207,
+          "total_inference_seconds": 2.414821199985454,
+          "audio_seconds": 9.2,
+          "rtf": 0.2624805652158102,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 0.9823625087738037,
+          "audio_float32_sha256": "0ffc2d3ce78bc241b03bfdff55a3f578be4bc3e39141d23f67216797e2b754b4"
+        },
+        {
+          "run": 3,
+          "first_chunk_seconds": 0.09041410000645556,
+          "total_inference_seconds": 2.4136254000186455,
+          "audio_seconds": 9.2,
+          "rtf": 0.26235058695854846,
+          "chunks": 22,
+          "audio_shape": [
+            441600
+          ],
+          "peak": 0.9823625087738037,
+          "audio_float32_sha256": "0ffc2d3ce78bc241b03bfdff55a3f578be4bc3e39141d23f67216797e2b754b4"
+        }
+      ]
+    }
+  ]
+}

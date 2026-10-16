@@ -1,25 +1,70 @@
 # StreamVox
 
-StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 Qwen3-TTS、S2-Pro、VoxCPM2 和 MOSS-TTS-Nano。它提供模型下载、本地 bundle 校验、音色 Prompt 缓存、设备选择与逐块音频输出。
+StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 **Qwen3-TTS、S2-Pro、VoxCPM2 和 MOSS-TTS-Nano**，适用于语音助手、实时对话、配音和离线播报。音频按块生成，可以边合成边播放，无需等待整段完成。
 
-**2.0.0** 首个开源版本面向 **Windows x64 / CPython 3.12**。Python 源码可读，SDK 全部功能免费提供，不需要产品激活。StreamVox 自有代码采用 [Apache-2.0](LICENSE)，模型权重和第三方组件遵循各自许可证。
+**当前版本：2.0.0 · Windows x64 · CPython 3.12**。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
 
-- [安装与快速开始](#安装)
+- [性能与资源占用](#性能与资源占用)
+- [支持模型与选型](#支持模型与选型)
+- [安装](#安装)
+- [快速开始](#快速开始)
+- [后端选择](#后端选择)
 - [完整使用文档](docs/usage.md)
 - [模型许可与来源](docs/model-licenses.md)
-- [模型适配指南](docs/model-adapter-guide.md)
-- [构建与验证](docs/development.md)
-- [第三方声明](THIRD_PARTY_NOTICES.md)
 
-## 能力与发行范围
+## 主要特性
 
-- 逐块返回 `numpy.ndarray`，数据类型为 `float32`；采样率从 `engine.runtime.sample_rate` 读取。
-- GGUF 模型通过 llama.cpp 运行，ONNX 模型组件通过 ONNX Runtime 运行。SDK 运行依赖不包含 `torch`、`torchaudio`、`torchvision`。
-- 单个 Windows wheel 同时包含 llama.cpp 的 **CPU、CUDA、Vulkan** 动态库；通过参数选择后端，不需要更换 wheel。
-- Prompt 可以临时使用，也可以按模型持久化，便于复用参考音色。
-- 支持传入本地模型目录；传入已注册模型名时，可从 ModelScope 获取模型。
+- **流式合成**：逐块输出音频，便于接入播放器、语音助手和实时通信。
+- **多模型、统一接口**：支持参考音色克隆，并按模型提供音色设计、续写、多说话人和情绪控制等能力。
+- **多种硬件后端**：支持 CPU，以及 NVIDIA、AMD、Intel 显卡；同一个安装包包含 llama.cpp 的 CPU、CUDA、Vulkan 后端，ONNX 组件可选择 CPU、CUDA 或 DirectML。
+- **轻量运行环境**：使用 llama.cpp 与 ONNX Runtime，运行依赖无需安装 PyTorch。
+- **本地与离线部署**：内置模型下载和文件校验；模型文件完整时，可以直接从本地目录离线合成。
+- **参考音色复用**：参考音频可预先编码为 Prompt，并按模型缓存，减少重复处理。
 
-发行文件名为 `streamvox-2.0.0-cp312-none-win_amd64.whl`。其中 `none` 表示 Python 模块不依赖特定扩展 ABI；包内包含 Windows 原生动态库，仍限 Windows x64，解释器要求 CPython 3.12。其他系统与 Python 版本不在本次发行支持范围内。
+## 性能与资源占用
+
+### 流式推理速度
+
+以下为 **SDK 2.0.0** 在 **Windows 11、NVIDIA GeForce RTX 4090 24 GB、Intel Core i7-13700KF** 上的单请求实测。各模型使用同一段参考音频和固定中文短句进行音色克隆，预热 1 次后测量 3 次，表中取各指标的中位数。
+
+| 模型 | 合成后端 | 首包延迟 | RTF | 相对实时速度 |
+| --- | --- | ---: | ---: | ---: |
+| Qwen3-TTS 0.6B | CUDA | **186 ms** | 0.148 | 6.76× |
+| Qwen3-TTS 1.7B | CUDA | **187 ms** | 0.159 | 6.29× |
+| S2-Pro | CUDA | **401 ms** | 0.347 | 2.88× |
+| VoxCPM2 | CUDA | **113 ms** | 0.344 | 2.91× |
+| MOSS-TTS-Nano | ONNX CUDA | **83 ms** | 0.234 | 4.27× |
+| MOSS-TTS-Nano | ONNX CPU | **90 ms** | 0.262 | 3.81× |
+
+首包延迟从发起 `stream()` 到收到第一个音频片段计时，不包含模型加载、参考音频编码和预热。**RTF = 完整合成耗时 / 生成音频时长**，越小越快；例如 RTF 为 0.2，表示生成 1 秒音频约需 0.2 秒，即约 5 倍实时速度。
+
+CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型设计使用 CPU。MOSS 两行使用相同的 `seed=42`。实际表现会随输入文本、参考音频、后端和硬件变化，完整条件与逐次数据见 [性能实测记录](docs/performance-2.0.0.json)。
+
+### 硬件资源建议
+
+| 模型 | 显存起步 / 推荐 | 内存起步 / 推荐 |
+| --- | ---: | ---: |
+| Qwen3-TTS 0.6B | 2 / 3 GB | 3 / 5 GB |
+| Qwen3-TTS 1.7B | 3 / 4 GB | 4 / 6 GB |
+| S2-Pro | 7 / 8 GB | 6 / 8 GB |
+| VoxCPM2 | 7 / 8 GB | 8 / 12 GB |
+| MOSS-TTS-Nano | CPU 无需显存；GPU 推荐 2 GB | 3 / 5 GB |
+
+以上为当前模型配置的经验建议，显存列针对 GPU 运行。长文本、较长参考音频及其他程序的资源占用会影响实际需求。VoxCPM2 当前使用 GGUF Q8、LocEnc / LocDiT FP32 和 AudioVAE FP16 组合。
+
+## 支持模型与选型
+
+| 模型名 | 采样率 | 主要能力与适用场景 | 指南 |
+| --- | ---: | --- | --- |
+| `qwen3-tts-clone-0.6b-gguf` | 24000 Hz | 单参考音色克隆，适合优先考虑资源占用的场景 | [Qwen3](docs/models/qwen3-tts-clone.md) |
+| `qwen3-tts-clone-1.7b-gguf` | 24000 Hz | 单参考音色克隆、多语言生成，适合通用语音应用 | [Qwen3](docs/models/qwen3-tts-clone.md) |
+| `s2-pro-4b-gguf` | 44100 Hz | 多参考、多说话人和表现控制，适合角色对白与配音 | [S2-Pro](docs/models/s2-pro.md) |
+| `voxcpm2-gguf` | 48000 Hz | 音色设计、参考克隆和续写，适合需要声音控制的场景 | [VoxCPM2](docs/models/voxcpm2.md) |
+| `moss-tts-nano-onnx` | 48000 Hz | 轻量 ONNX 路线，适合无独显机器与 CPU 部署 | [MOSS](docs/models/moss-tts-nano.md) |
+
+没有独立显卡时，可以先尝试 **MOSS-TTS-Nano**；需要参考音色克隆时，可从 **Qwen3-TTS** 入手；需要音色设计与续写时选择 **VoxCPM2**；多说话人和表现控制需求可以考虑 **S2-Pro**。
+
+SDK 包不包含模型权重。**S2-Pro 转换权重采用 Fish Audio Research License，商业用途需要 Fish Audio 单独书面许可**；其余三类当前默认转换权重采用 Apache-2.0。模型能力、来源和许可边界见对应指南及 [模型许可表](docs/model-licenses.md)。
 
 ## 安装
 
@@ -30,7 +75,7 @@ uv venv --python 3.12 --managed-python
 .venv\Scripts\Activate.ps1
 ```
 
-从 [GitHub Releases](https://github.com/RoversCode/StreamVox/releases) 下载同版本 wheel，按硬件选择一个 ONNX Runtime 依赖组：
+从 [GitHub Releases v2.0.0](https://github.com/RoversCode/StreamVox/releases/tag/v2.0.0) 下载 `streamvox-2.0.0-cp312-none-win_amd64.whl`，按硬件选择安装命令：
 
 | 场景 | 安装命令 |
 | --- | --- |
@@ -47,20 +92,9 @@ uv venv --python 3.12 --managed-python
 python -c "import streamvox; print(streamvox.__version__)"
 ```
 
-源码开发安装：
-
-```powershell
-git clone https://github.com/RoversCode/StreamVox.git
-cd StreamVox
-uv sync --managed-python --extra cpu --group dev
-uv run python -m streamvox.native_assets --project-root .
-```
-
-公开 Git 仓库不存放 DLL。`native_assets` 从固定版本、固定哈希的官方 llama.cpp 归档恢复三种后端，并将 OpenMP 运行库替换为固定公开的 conda-forge LLVM 构建，供源码运行和本地构建使用；详见 [构建文档](docs/development.md)。
-
 ## 快速开始
 
-以下示例使用你自行准备、并有权使用的参考音频。`prompt_text` 应与音频内容一致；项目不提供没有明确再分发许可的参考录音。
+以下示例使用你自行准备、并有权使用的参考音频。`prompt_text` 应与音频内容一致。
 
 ```python
 import numpy as np
@@ -102,50 +136,39 @@ if __name__ == "__main__":
 python example/synthesize.py --model qwen3-tts-clone-0.6b-gguf --reference-audio C:/audio/reference.wav --reference-text "参考音频的实际内容。" --text "你好，欢迎使用 StreamVox。" --output output.wav
 ```
 
-`TTSEngine` 除 `model` 外的初始化参数必须按名称传入。模型名可替换为已下载 bundle 的目录；离线部署建议使用本地目录并保留默认哈希校验。详见 [使用文档](docs/usage.md)。
+`stream()` 逐块返回 `float32` 的 `numpy.ndarray`，采样率从 `engine.runtime.sample_rate` 读取。上面的示例为方便保存 WAV 而汇总所有片段；接入实时播放时，可以在迭代过程中逐块播放或发送音频。
 
-## 支持模型
-
-| 模型名 | 采样率 | 主要能力 | 指南 |
-| --- | ---: | --- | --- |
-| `qwen3-tts-clone-0.6b-gguf` | 24000 Hz | 单参考音色克隆，较低资源需求 | [Qwen3](docs/models/qwen3-tts-clone.md) |
-| `qwen3-tts-clone-1.7b-gguf` | 24000 Hz | 单参考音色克隆，多语言生成 | [Qwen3](docs/models/qwen3-tts-clone.md) |
-| `s2-pro-4b-gguf` | 44100 Hz | 多参考、多说话人和表现控制 | [S2-Pro](docs/models/s2-pro.md) |
-| `voxcpm2-gguf` | 48000 Hz | 音色设计、参考克隆和续写 | [VoxCPM2](docs/models/voxcpm2.md) |
-| `moss-tts-nano-onnx` | 48000 Hz | 轻量 ONNX 路线，单参考克隆与续写 | [MOSS](docs/models/moss-tts-nano.md) |
-
-模型能力取决于对应上游和所用权重。SDK 包不包含模型权重。**S2-Pro 转换权重采用 Fish Audio Research License，商业用途需要 Fish Audio 单独书面许可**；其余三类当前默认转换权重采用 Apache-2.0。完整来源和边界见 [模型许可表](docs/model-licenses.md)。
+`TTSEngine` 除 `model` 外的初始化参数必须按名称传入。模型名可替换为已下载模型的目录；离线部署建议使用本地目录并保留默认哈希校验。Prompt 缓存、长音频写入与更多调用方式见 [使用文档](docs/usage.md)。
 
 ## 后端选择
 
 `device` 表达 CPU/GPU 和设备编号；`llama_backend` 与 `onnx_provider` 分别选择 GGUF 和 ONNX 后端。例如，在安装 `[directml,llama-cuda]` 的 NVIDIA 环境中：
 
 ```python
-engine = TTSEngine(
-    model="voxcpm2-gguf",
-    device="gpu:0",
-    llama_backend="cuda",
-    onnx_provider="directml",
-)
-try:
-    print(engine.actual_backends)
-finally:
-    engine.shutdown()
+from streamvox import TTSEngine
+
+
+if __name__ == "__main__":
+    engine = TTSEngine(
+        model="voxcpm2-gguf",
+        device="gpu:0",
+        llama_backend="cuda",
+        onnx_provider="directml",
+    )
+    try:
+        print(engine.actual_backends)
+    finally:
+        engine.shutdown()
 ```
 
-显式请求的后端不可用或初始化时发生不允许的回退，会抛出异常。`actual_backends` 返回实际后端与主进程可见 ONNX 会话；MOSS 的 DirectML codec decode step 保留已知 CPU 兼容策略。多卡选择和子进程会话范围见 [设备说明](docs/usage.md#设备与实际后端)。
+显式请求的后端不可用时会抛出异常。可以用 `engine.actual_backends` 查看实际选择；多卡配置与各模型的后端说明见 [设备说明](docs/usage.md#设备与实际后端)。
 
-## 验证状态与开发
+## 使用建议
 
-2.0.0 调整 SDK 公开接口和发行方式。**全模型数值对照与人工试听尚未验收**，已有数值失败证据仍需继续排查；源码测试和安装检查不能代替模型数值一致性与音质验证。不同模型、输入和硬件上的速度应以本机测试为准。
-
-基础检查：
-
-```powershell
-uv run python -m pytest tests -q
-```
-
-参与开发时，请先阅读 [模型适配指南](docs/model-adapter-guide.md) 和 [构建与验证](docs/development.md)。提交问题时附上 SDK 版本、模型名、实际后端、硬件、可复现输入和经过脱敏的日志。
+- 频繁复用的音色先调用 `make_prompt()`，将参考音频处理与正式合成分开，减少请求等待。
+- 对数字、日期、金额和缩写有明确读法要求时，先改写成自然语言；长文本可以按句或短段组织。
+- 音色还原和表现力取决于模型、参考音频与输入内容。出现吞字或异常停顿时，可先检查参考转写、调整断句，或更换清晰的参考音频。
+- 遇到安装或运行问题，可先查阅 [故障排查](docs/usage.md#故障排查)，再通过 [GitHub Issues](https://github.com/RoversCode/StreamVox/issues) 提供版本、模型、后端和可复现示例。
 
 ## 许可证与致谢
 
