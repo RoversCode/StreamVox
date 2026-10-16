@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77", "wheel"]
+requires = ["setuptools>=77", "wheel", "packaging>=24.2"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -65,7 +65,7 @@ directml = ["onnxruntime-directml==1.21.1; sys_platform == 'win32'"]
 cpu = ["onnxruntime==1.21.1"]
 
 [dependency-groups]
-dev = ["pytest>=8,<10", "build>=1.2,<2", "setuptools>=77", "wheel>=0.45", "twine>=6,<7"]
+dev = ["pytest>=8,<10", "build>=1.2,<2", "packaging>=24.2", "setuptools>=77", "wheel>=0.45", "twine>=6,<7"]
 
 [tool.uv]
 conflicts = [
