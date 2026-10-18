@@ -27,7 +27,7 @@ uv sync --managed-python --extra directml --extra llama-cuda --group dev
 
 ## Linux 源码环境
 
-Linux x86_64 的依赖安装、固定版本 llama.cpp 编译、共享库路径与运行命令见 [README：Linux 源码运行](../README.md#linux-源码运行)。Linux 使用 `uv sync --no-install-project` 准备依赖，从仓库根运行 `python -m example.synthesize`。通过 `uv run` 执行时需加 `--no-sync`。
+Linux x86_64 的依赖安装、预编译共享库下载、库路径与运行命令见 [README：Linux 源码运行](../README.md#linux-源码运行)。Linux 使用 `uv sync --no-install-project` 准备依赖，从仓库根运行 `python -m example.synthesize`。通过 `uv run` 执行时需加 `--no-sync`。
 
 激活虚拟环境后，可先运行与发行来源和附件校验有关的测试：
 
@@ -38,6 +38,32 @@ python -m pytest tests/test_release_artifacts.py -q
 其他用例按改动范围与平台选择。全量测试包含 Windows 专用的路径与 wheel 标签检查，该部分需要在 Windows 上验证。
 
 当前 wheel 构建与发行审计面向 Windows，Linux 源码环境不执行下述 Windows 原生资产恢复与发行构建步骤。
+
+## Linux 原生库自编译（可选）
+
+通常使用 README 中的 b8683 预编译 CPU 或 Vulkan 包即可。需要 Linux CUDA 后端、定制 CPU 指令集，或预编译包与系统库不兼容时，可从同一版本自行编译。以下命令在仓库根目录执行，默认生成 CPU 库：
+
+```bash
+sudo apt-get install -y build-essential cmake ninja-build pkg-config
+git clone --depth 1 --branch b8683 https://github.com/ggml-org/llama.cpp.git .artifacts/llama.cpp
+test "$(git -C .artifacts/llama.cpp rev-parse HEAD)" = "d0a6dfeb28a09831d904fc4d910ddb740da82834"
+
+cmake -S .artifacts/llama.cpp -B .artifacts/llama.cpp/build-cpu -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+  -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF \
+  -DGGML_CUDA=OFF -DGGML_VULKAN=OFF \
+  -DLLAMA_BUILD_COMMON=OFF -DLLAMA_BUILD_TESTS=OFF \
+  -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF
+cmake --build .artifacts/llama.cpp/build-cpu --parallel 4
+
+mkdir -p streamvox/bin
+cp -a .artifacts/llama.cpp/build-cpu/bin/lib*.so* streamvox/bin/
+export LD_LIBRARY_PATH="$PWD/streamvox/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+该 CPU 配置保留 ggml 默认的 AVX2、FMA、F16C 和 BMI2 选项，需要 CPU 支持；较旧机器应按其能力调整选项。原生库应作为同一套部署，避免混用不同构建的公共库和后端。
+
+CUDA 构建需准备 NVIDIA 驱动与匹配项目运行依赖的 CUDA 工具链，在独立的 `build-cuda` 目录启用 `-DGGML_CUDA=ON`；Vulkan 构建需准备 Vulkan 开发工具、头文件、loader 与驱动，在独立的 `build-vulkan` 目录启用 `-DGGML_VULKAN=ON`。构建完成后，复制对应构建目录的全部 `lib*.so*` 到 `streamvox/bin/`。Python 依赖与运行参数见 README 的后端选择表。
 
 ## Windows 原生运行库
 
