@@ -4,6 +4,10 @@
 
 2.0.0 的发行目标为 Windows x64 / CPython 3.12。Python 模块以可读源码分发，wheel tag 为 `cp312-none-win_amd64`。其中 `none` 表示 Python 模块不依赖特定扩展 ABI；包内包含 Windows 原生动态库，因此仍限 Windows x64 / CPython 3.12。构建同时生成带原生 DLL 的 sdist，以便重建安装包；公开 Git 仓库不存放 DLL。
 
+## 仓库与贡献
+
+[RoversCode/StreamVox](https://github.com/RoversCode/StreamVox) 是项目唯一的源码维护仓库。日常开发与外部贡献都从 `master` 创建分支，通过 PR 审查并合并；本地工作目录可以使用任意名称。提交范围与个人 AI 配置的本地排除方式见 [参与贡献](../CONTRIBUTING.md)。
+
 ## 开发环境
 
 ```powershell
@@ -33,7 +37,7 @@ uv run python -m streamvox.native_assets --project-root . --cache-dir .artifacts
 
 ## 发行构建
 
-先在公开仓库准备将要发行的提交，取得其完整 40 位 SHA，替换下面的占位内容：
+先选定本仓库已合并到 `master` 的发行提交，确认检出目录干净，取得其完整 40 位 SHA，替换下面的占位内容：
 
 ```powershell
 uv run python -m streamvox.package_release --project-root . --python .venv/Scripts/python.exe --source-commit <公开仓库40位提交> --native-cache .artifacts/native/b8683
@@ -83,4 +87,4 @@ uv run python tools/benchmark_streamvox_models.py --model ckpts/voxcpm2-gguf --m
 
 ## 当前验收边界
 
-全模型数值对照与人工试听尚未验收，已有数值失败证据不能被本轮源码、打包或单元测试结果覆盖。本轮不修改模型权重、精度、公式和采样配置；推理性能、音质和跨后端数值一致性仍需要各自的验证记录。
+全模型数值对照与人工试听尚未验收，已有数值失败证据不能被源码、打包或单元测试结果覆盖。模型权重、精度、公式或采样配置发生变化时，推理性能、音质和跨后端数值一致性需要各自的验证记录。

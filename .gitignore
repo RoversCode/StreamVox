@@ -1,25 +1,26 @@
-__pycache__
+# Python 开发环境与缓存。
+__pycache__/
 *.py[cod]
+*.egg-info/
 .pytest_cache/
-ref_code
-logs
-.vscode
-AGENTS.md
-*.egg-info
-tasks
-doc
-ckpts
-.venv*
-bin
-dist
-test_streamvox.py
-*.db
-tests/output/
-nuitka-crash-report.xml
-output
-.worktrees/
-.artifacts/
-build/
+.venv*/
 
-output.wav
-example/*.wav
+# 本地模型与按需恢复的原生运行库。
+/ckpts/
+/streamvox/bin/
+
+# 构建、测试与性能采样的生成文件。
+/build/
+/dist/
+/.artifacts/
+/.worktrees/
+/tests/output/
+/logs/
+/output/
+/output.wav
+
+# 本机环境配置；公开的配置示例可以正常提交。
+.env
+.env.*
+!.env.example
+!.env.*.example
