@@ -8,7 +8,7 @@
 
 1. 从最新的 `master` 创建独立分支。外部贡献者先 Fork 仓库，在自己的分支上开发。
 2. 修改一个明确的问题或功能，并同步受影响的测试、示例和文档。
-3. 按 [开发与验证](docs/development.md) 准备 Windows x64 / CPython 3.12 环境，运行与修改相关的验证；源码变更应运行 `uv run python -m pytest tests -q`。
+3. 按 [开发与验证](docs/development.md) 准备 CPython 3.12 环境，运行与修改相关的验证；源码变更应运行测试。Windows 开发环境使用 `uv run python -m pytest tests -q`，Linux 源码环境使用已激活虚拟环境中的 Python 执行与平台及改动相关的用例；Windows 发行约束仍需在 Windows 上验证。
 4. 向本仓库的 `master` 提交 PR，说明问题、修改后的行为、验证命令与结果，以及仍未验证的部分。
 5. 维护者审查并合并后，从已合并的确定提交构建发行产物。源码提交、发行标签与构建来源必须一致。
 

@@ -2,11 +2,12 @@
 
 StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 **Qwen3-TTS、S2-Pro、VoxCPM2 和 MOSS-TTS-Nano**，适用于语音助手、实时对话、配音和离线播报。音频按块生成，可以边合成边播放，无需等待整段完成。
 
-**当前版本：2.0.0 · Windows x64 · CPython 3.12**。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
+**当前版本：2.0.0 · CPython 3.12**。预编译发行包面向 Windows x64；Linux x86_64 的环境准备与直接运行方式见 [Linux 源码运行](#linux-源码运行)。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
 
 - [性能与资源占用](#性能与资源占用)
 - [支持模型与选型](#支持模型与选型)
 - [安装](#安装)
+- [Linux 源码运行](#linux-源码运行)
 - [快速开始](#快速开始)
 - [后端选择](#后端选择)
 - [完整使用文档](docs/usage.md)
@@ -68,6 +69,8 @@ SDK 包不包含模型权重。**S2-Pro 转换权重采用 Fish Audio Research L
 
 ## 安装
 
+### Windows 发行包
+
 先安装 [uv](https://docs.astral.sh/uv/)，创建独立环境：
 
 ```powershell
@@ -91,6 +94,75 @@ uv venv --python 3.12 --managed-python
 ```powershell
 python -c "import streamvox; print(streamvox.__version__)"
 ```
+
+### Linux 源码运行
+
+以下以 Ubuntu / Debian x86_64 的 CPU 环境为例。直接运行仓库中的 Python 源码，依赖安装到独立虚拟环境；当前 `setup.py` 的 wheel 构建只接受 Windows，因此 Linux 使用 `--no-install-project` 跳过项目自身安装，无需执行 `pip install .`。
+
+**1. 准备系统依赖与 Python 环境**
+
+先安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)，再执行：
+
+```bash
+sudo apt-get update
+sudo apt-get install -y git build-essential cmake ninja-build pkg-config libsndfile1 libgomp1
+
+git clone https://github.com/RoversCode/StreamVox.git
+cd StreamVox
+uv sync --locked --python 3.12 --managed-python --extra cpu --group dev --no-install-project
+source .venv/bin/activate
+python -c "import streamvox; print(streamvox.__version__)"
+```
+
+**2. 编译 GGUF 模型使用的 llama.cpp 动态库**
+
+Qwen3-TTS、S2-Pro 和 VoxCPM2 需要此步骤；仅使用 MOSS-TTS-Nano 时可以跳过。Linux 使用本机编译的 `.so`，版本与项目固定的 **llama.cpp b8683** 保持一致：
+
+```bash
+git clone --depth 1 --branch b8683 https://github.com/ggml-org/llama.cpp.git .artifacts/llama.cpp
+test "$(git -C .artifacts/llama.cpp rev-parse HEAD)" = "d0a6dfeb28a09831d904fc4d910ddb740da82834"
+
+cmake -S .artifacts/llama.cpp -B .artifacts/llama.cpp/build-cpu -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
+  -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF \
+  -DGGML_CUDA=OFF -DGGML_VULKAN=OFF \
+  -DLLAMA_BUILD_COMMON=OFF -DLLAMA_BUILD_TESTS=OFF \
+  -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF
+cmake --build .artifacts/llama.cpp/build-cpu --parallel 4
+
+mkdir -p streamvox/bin
+cp -a .artifacts/llama.cpp/build-cpu/bin/lib*.so* streamvox/bin/
+export LD_LIBRARY_PATH="$PWD/streamvox/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+```
+
+该配置保留 ggml 默认的 AVX2、FMA、F16C 和 BMI2 指令集选项，需要 CPU 支持；较旧机器应按其能力调整编译选项。复制全部相关共享库并保留软链接，包括 `libllama.so`、`libggml.so`、`libggml-base.so` 和 CPU 插件 `libggml-cpu.so`。每次打开新终端，进入仓库根目录后重新激活环境并设置上述 `LD_LIBRARY_PATH`。`streamvox.native_assets` 下载的是 Windows DLL，Linux 不使用该下载命令。
+
+**3. 从源码直接运行**
+
+在仓库根目录运行模块入口，使 Python 能找到本地 `streamvox` 源码：
+
+```bash
+python -m example.synthesize --help
+python -m example.synthesize \
+  --model qwen3-tts-clone-0.6b-gguf \
+  --reference-audio /path/to/reference.wav \
+  --reference-text "参考音频的实际内容。" \
+  --text "你好，欢迎使用 StreamVox。" \
+  --device cpu --llama-backend cpu --onnx-provider cpu \
+  --output output.wav
+```
+
+将参考音频路径与转写替换为自己的素材。首次使用模型名会下载权重；离线运行时，将 `--model` 替换为已准备好的本地 bundle 目录。使用 MOSS 时，将模型名换成 `moss-tts-nano-onnx` 即可。若使用 `uv run` 执行命令，需加 `--no-sync`，避免自动安装项目并触发 Windows wheel 构建。测试与发行验证见 [开发文档](docs/development.md)。
+
+需要 GPU 时，可在上述流程上调整：
+
+| 场景 | 环境与构建调整 | 运行参数 |
+| --- | --- | --- |
+| llama CUDA，ONNX CPU | 同步依赖时额外加 `--extra llama-cuda`；安装 NVIDIA 驱动与 CUDA 编译工具链，在独立构建目录启用 `-DGGML_CUDA=ON` | `--device gpu:0 --llama-backend cuda --onnx-provider cpu` |
+| llama 与 ONNX 均使用 CUDA | 将 `--extra cpu` 换成 `--extra onnx-cuda --extra llama-cuda`；同样构建 CUDA 后端 | `--device gpu:0 --llama-backend cuda --onnx-provider cuda` |
+| llama Vulkan，ONNX CPU | 保留 `--extra cpu`；准备 Vulkan 开发工具、驱动与 loader，在独立构建目录启用 `-DGGML_VULKAN=ON` | `--device gpu:0 --llama-backend vulkan --onnx-provider cpu` |
+
+GPU 构建完成后，同样复制该构建目录的全部 `lib*.so*`，包含相应的 `libggml-cuda.so` 或 `libggml-vulkan.so`。CUDA 运行库默认从当前虚拟环境的 NVIDIA 依赖中发现；自行提供时，通过 `STREAMVOX_NVIDIA_LIB_DIRS` 指定所在目录，多个目录用冒号分隔。DirectML 仅用于 Windows。现有性能记录来自 Windows，Linux 完整模型合成与 GPU 组合仍需在目标环境验证。
 
 ## 快速开始
 

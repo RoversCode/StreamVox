@@ -8,7 +8,7 @@
 
 [RoversCode/StreamVox](https://github.com/RoversCode/StreamVox) 是项目唯一的源码维护仓库。日常开发与外部贡献都从 `master` 创建分支，通过 PR 审查并合并；本地工作目录可以使用任意名称。提交范围与个人 AI 配置的本地排除方式见 [参与贡献](../CONTRIBUTING.md)。
 
-## 开发环境
+## Windows 开发环境
 
 ```powershell
 git clone https://github.com/RoversCode/StreamVox.git
@@ -25,7 +25,21 @@ uv sync --managed-python --extra directml --extra llama-cuda --group dev
 
 `cpu`、`directml`、`onnx-cuda` 互斥。SDK 运行环境不需要 Torch；离线参考导出与数值对照工具应使用单独环境，避免改变 SDK 运行依赖。
 
-## 原生运行库
+## Linux 源码环境
+
+Linux x86_64 的依赖安装、固定版本 llama.cpp 编译、共享库路径与运行命令见 [README：Linux 源码运行](../README.md#linux-源码运行)。Linux 使用 `uv sync --no-install-project` 准备依赖，从仓库根运行 `python -m example.synthesize`。通过 `uv run` 执行时需加 `--no-sync`。
+
+激活虚拟环境后，可先运行与发行来源和附件校验有关的测试：
+
+```bash
+python -m pytest tests/test_release_artifacts.py -q
+```
+
+其他用例按改动范围与平台选择。全量测试包含 Windows 专用的路径与 wheel 标签检查，该部分需要在 Windows 上验证。
+
+当前 wheel 构建与发行审计面向 Windows，Linux 源码环境不执行下述 Windows 原生资产恢复与发行构建步骤。
+
+## Windows 原生运行库
 
 `native_assets` 使用固定的官方 llama.cpp b8683 归档及 SHA256，恢复 CPU、CUDA 和 Vulkan 运行库到 `streamvox/bin/`。其中 OpenMP 替换为固定公开的 conda-forge LLVM OpenMP 15.0.5 包内的 `libomp.dll`，按 ggml 的导入名保存为 `libomp140.x86_64.dll`。该步骤只替换运行库，不涉及模型权重和采样配置；校验归档及 DLL 哈希后，将完整来源和文件摘要写入 `native-manifest.json`。下载缓存默认位于 `.artifacts/native/b8683`；可以显式指定缓存目录：
 
