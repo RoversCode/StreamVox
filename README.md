@@ -97,7 +97,7 @@ python -c "import streamvox; print(streamvox.__version__)"
 
 ### Linux 源码运行
 
-以下以 Ubuntu / Debian x86_64 的 CPU 环境为例。直接运行仓库中的 Python 源码，依赖安装到独立虚拟环境；当前 `setup.py` 的 wheel 构建只接受 Windows，因此 Linux 使用 `--no-install-project` 跳过项目自身安装，无需执行 `pip install .`。
+以下以 Ubuntu 22.04 及以上的 x86_64 CPU 环境为例，其他 Linux 发行版需满足预编译库的系统依赖。直接运行仓库中的 Python 源码，依赖安装到独立虚拟环境；当前 `setup.py` 的 wheel 构建只接受 Windows，因此 Linux 使用 `--no-install-project` 跳过项目自身安装，无需执行 `pip install .`。
 
 **1. 准备系统依赖与 Python 环境**
 
@@ -105,7 +105,7 @@ python -c "import streamvox; print(streamvox.__version__)"
 
 ```bash
 sudo apt-get update
-sudo apt-get install -y git build-essential cmake ninja-build pkg-config libsndfile1 libgomp1
+sudo apt-get install -y git curl ca-certificates libsndfile1 libgomp1 libstdc++6
 
 git clone https://github.com/RoversCode/StreamVox.git
 cd StreamVox
@@ -114,28 +114,21 @@ source .venv/bin/activate
 python -c "import streamvox; print(streamvox.__version__)"
 ```
 
-**2. 编译 GGUF 模型使用的 llama.cpp 动态库**
+**2. 下载 GGUF 模型使用的预编译动态库**
 
-Qwen3-TTS、S2-Pro 和 VoxCPM2 需要此步骤；仅使用 MOSS-TTS-Nano 时可以跳过。Linux 使用本机编译的 `.so`，版本与项目固定的 **llama.cpp b8683** 保持一致：
+Qwen3-TTS、S2-Pro 和 VoxCPM2 需要 llama.cpp 动态库；仅使用 MOSS-TTS-Nano 时可以跳过。默认从 [llama.cpp b8683 发布页](https://github.com/ggml-org/llama.cpp/releases/tag/b8683) 下载已经编译好的 Linux 库，无需本机编译。CPU 与 Vulkan 包均可从该页面取得，版本应与项目固定的 **b8683** 保持一致。
 
 ```bash
-git clone --depth 1 --branch b8683 https://github.com/ggml-org/llama.cpp.git .artifacts/llama.cpp
-test "$(git -C .artifacts/llama.cpp rev-parse HEAD)" = "d0a6dfeb28a09831d904fc4d910ddb740da82834"
-
-cmake -S .artifacts/llama.cpp -B .artifacts/llama.cpp/build-cpu -G Ninja \
-  -DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON \
-  -DGGML_BACKEND_DL=ON -DGGML_NATIVE=OFF \
-  -DGGML_CUDA=OFF -DGGML_VULKAN=OFF \
-  -DLLAMA_BUILD_COMMON=OFF -DLLAMA_BUILD_TESTS=OFF \
-  -DLLAMA_BUILD_EXAMPLES=OFF -DLLAMA_BUILD_TOOLS=OFF
-cmake --build .artifacts/llama.cpp/build-cpu --parallel 4
-
-mkdir -p streamvox/bin
-cp -a .artifacts/llama.cpp/build-cpu/bin/lib*.so* streamvox/bin/
+mkdir -p .artifacts/llama-cpu-b8683 streamvox/bin
+curl -fL --retry 3 \
+  https://github.com/ggml-org/llama.cpp/releases/download/b8683/llama-b8683-bin-ubuntu-x64.tar.gz \
+  -o .artifacts/llama-b8683-bin-ubuntu-x64.tar.gz
+tar -xzf .artifacts/llama-b8683-bin-ubuntu-x64.tar.gz -C .artifacts/llama-cpu-b8683
+cp -a .artifacts/llama-cpu-b8683/llama-b8683/lib*.so* streamvox/bin/
 export LD_LIBRARY_PATH="$PWD/streamvox/bin${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 ```
 
-该配置保留 ggml 默认的 AVX2、FMA、F16C 和 BMI2 指令集选项，需要 CPU 支持；较旧机器应按其能力调整编译选项。复制全部相关共享库并保留软链接，包括 `libllama.so`、`libggml.so`、`libggml-base.so` 和 CPU 插件 `libggml-cpu.so`。每次打开新终端，进入仓库根目录后重新激活环境并设置上述 `LD_LIBRARY_PATH`。`streamvox.native_assets` 下载的是 Windows DLL，Linux 不使用该下载命令。
+复制全部共享库并保留软链接，包括 `libllama.so*`、`libggml.so*`、`libggml-base.so*` 和 `libggml-cpu-*.so` 等后端库，保持它们来自同一个归档。CPU 预编译包要求 glibc 至少为 2.34，且系统 C++ 运行库提供 `GLIBCXX_3.4.29`。每次打开新终端，进入仓库根目录后重新激活环境并设置上述 `LD_LIBRARY_PATH`。`streamvox.native_assets` 下载的是 Windows DLL，Linux 使用上面的预编译 `.so` 下载方式。
 
 **3. 从源码直接运行**
 
@@ -154,15 +147,15 @@ python -m example.synthesize \
 
 将参考音频路径与转写替换为自己的素材。首次使用模型名会下载权重；离线运行时，将 `--model` 替换为已准备好的本地 bundle 目录。使用 MOSS 时，将模型名换成 `moss-tts-nano-onnx` 即可。若使用 `uv run` 执行命令，需加 `--no-sync`，避免自动安装项目并触发 Windows wheel 构建。测试与发行验证见 [开发文档](docs/development.md)。
 
-需要 GPU 时，可在上述流程上调整：
+需要 GPU 时，可按后端选择运行库。切换时先备份并移出旧的 `streamvox/bin/`，再将选定归档的整套库复制到新目录：
 
 | 场景 | 环境与构建调整 | 运行参数 |
 | --- | --- | --- |
-| llama CUDA，ONNX CPU | 同步依赖时额外加 `--extra llama-cuda`；安装 NVIDIA 驱动与 CUDA 编译工具链，在独立构建目录启用 `-DGGML_CUDA=ON` | `--device gpu:0 --llama-backend cuda --onnx-provider cpu` |
-| llama 与 ONNX 均使用 CUDA | 将 `--extra cpu` 换成 `--extra onnx-cuda --extra llama-cuda`；同样构建 CUDA 后端 | `--device gpu:0 --llama-backend cuda --onnx-provider cuda` |
-| llama Vulkan，ONNX CPU | 保留 `--extra cpu`；准备 Vulkan 开发工具、驱动与 loader，在独立构建目录启用 `-DGGML_VULKAN=ON` | `--device gpu:0 --llama-backend vulkan --onnx-provider cpu` |
+| llama Vulkan，ONNX CPU | 保留 `--extra cpu`；下载 [Linux Vulkan 预编译包](https://github.com/ggml-org/llama.cpp/releases/download/b8683/llama-b8683-bin-ubuntu-vulkan-x64.tar.gz)，将其中全部 `lib*.so*` 放到 `streamvox/bin/`；glibc 至少为 2.34，C++ 运行库需提供 `GLIBCXX_3.4.30`，并安装 `libvulkan1` 与显卡驱动 | `--device gpu:0 --llama-backend vulkan --onnx-provider cpu` |
+| llama CUDA，ONNX CPU | 同步依赖时额外加 `--extra llama-cuda`；准备匹配 b8683 的 Linux CUDA 运行库，或按 [可选编译步骤](docs/development.md#linux-原生库自编译可选) 构建 | `--device gpu:0 --llama-backend cuda --onnx-provider cpu` |
+| llama 与 ONNX 均使用 CUDA | 将 `--extra cpu` 换成 `--extra onnx-cuda --extra llama-cuda`；同样准备 Linux CUDA 运行库 | `--device gpu:0 --llama-backend cuda --onnx-provider cuda` |
 
-GPU 构建完成后，同样复制该构建目录的全部 `lib*.so*`，包含相应的 `libggml-cuda.so` 或 `libggml-vulkan.so`。CUDA 运行库默认从当前虚拟环境的 NVIDIA 依赖中发现；自行提供时，通过 `STREAMVOX_NVIDIA_LIB_DIRS` 指定所在目录，多个目录用冒号分隔。DirectML 仅用于 Windows。现有性能记录来自 Windows，Linux 完整模型合成与 GPU 组合仍需在目标环境验证。
+Vulkan 包需要包含 `libggml-vulkan.so`，CUDA 包需要包含 `libggml-cuda.so`，并各自携带匹配的公共库与 CPU 后端。b8683 官方发布页提供 Linux CPU 和 Vulkan 包；需要 CUDA、定制构建或预编译包与系统不兼容时，可使用 [原生库自编译说明](docs/development.md#linux-原生库自编译可选)。CUDA 运行库默认从当前虚拟环境的 NVIDIA 依赖中发现；自行提供时，通过 `STREAMVOX_NVIDIA_LIB_DIRS` 指定所在目录，多个目录用冒号分隔。DirectML 仅用于 Windows。现有性能记录来自 Windows，Linux 完整模型合成与 GPU 组合仍需在目标环境验证。
 
 ## 快速开始
 

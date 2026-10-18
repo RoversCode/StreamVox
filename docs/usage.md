@@ -227,7 +227,7 @@ result = download_model(
 | 情况 | 检查内容 |
 | --- | --- |
 | 安装失败 | Windows 发行包需要 x64、CPython 3.12 和 `cp312-none-win_amd64` wheel；Linux 按 [源码运行](../README.md#linux-源码运行) 使用 `--no-install-project` 准备环境。环境只安装一种 ONNX Runtime。 |
-| 找不到 DLL 或共享库 | Windows wheel 应携带 DLL，Windows 源码环境先执行 `python -m streamvox.native_assets --project-root .`；Linux 需编译对应 `.so`，复制到 `streamvox/bin/` 并在启动前设置 `LD_LIBRARY_PATH`。 |
+| 找不到 DLL 或共享库 | Windows wheel 应携带 DLL，Windows 源码环境先执行 `python -m streamvox.native_assets --project-root .`；Linux 按 [源码运行](../README.md#linux-源码运行) 下载预编译 `.so`，放到 `streamvox/bin/` 并在启动前设置 `LD_LIBRARY_PATH`，系统不兼容时再选择自编译。 |
 | 模型目录无效 | 检查 `manifest.json`、模型名、`ckpt/` 文件和哈希。 |
 | 角色不存在 | 缓存角色须先以 `persist=True` 创建；临时 Prompt 直接传返回对象。 |
 | 后端不可用 | 核对安装的 extra、GPU 驱动、显式 provider 和实际后端；明确选择失败会报错。 |
