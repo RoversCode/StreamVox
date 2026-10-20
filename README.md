@@ -17,6 +17,7 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 
 - **流式合成**：逐块输出音频，便于接入播放器、语音助手和实时通信。
 - **多模型、统一接口**：支持参考音色克隆，并按模型提供音色设计、续写、多说话人和情绪控制等能力。
+- **多语言支持**：支持中文、英语、日语、韩语、法语、德语、西班牙语、俄语等主流语言；具体语言覆盖因模型而异，详情与使用方式见 [Qwen3-TTS](docs/models/qwen3-tts-clone.md)、[S2-Pro](docs/models/s2-pro.md)、[VoxCPM2](docs/models/voxcpm2.md) 和 [MOSS-TTS-Nano](docs/models/moss-tts-nano.md) 的模型说明。
 - **多种硬件后端**：支持 CPU，以及 NVIDIA、AMD、Intel 显卡；同一个安装包包含 llama.cpp 的 CPU、CUDA、Vulkan 后端，ONNX 组件可选择 CPU、CUDA 或 DirectML。
 - **轻量运行环境**：使用 llama.cpp 与 ONNX Runtime，运行依赖无需安装 PyTorch。
 - **本地与离线部署**：内置模型下载和文件校验；模型文件完整时，可以直接从本地目录离线合成。
