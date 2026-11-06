@@ -11,8 +11,8 @@ def test_release_is_readable_source_without_python_extension_abi():
     """原生 DLL 不应伪装成需要 CPython 扩展接口的模块。"""
     targets = list_targets()
     assert len(targets) == 1
-    assert targets[0].wheel_filename == "streamvox-2.0.0-cp312-none-win_amd64.whl"
-    assert targets[0].sdist_filename == "streamvox-2.0.0.tar.gz"
+    assert targets[0].wheel_filename == "streamvox-2.1.0-cp312-none-win_amd64.whl"
+    assert targets[0].sdist_filename == "streamvox-2.1.0.tar.gz"
 
 
 def test_llama_cuda_extra_has_only_required_libraries():

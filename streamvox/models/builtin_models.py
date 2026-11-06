@@ -1,5 +1,6 @@
 """集中注册 SDK 内置模型，让包入口保持简洁。"""
 
+from .breeze import BreezeTTS2GGUFAdapter
 from .moss_tts_nano import MossTTSNanoOnnxAdapter
 from .qwen3 import Qwen3TTSClone06BAdapter, Qwen3TTSClone17BAdapter
 from .registry import default_registry
@@ -16,7 +17,7 @@ def register_default_models() -> None:
     # 同一 qwen3 clone GGUF 系列按模型大小注册多个 adapter，runtime 仍共享一套实现。
     for adapter in (
         Qwen3TTSClone06BAdapter(), Qwen3TTSClone17BAdapter(), S2Pro4BGGUFAdapter(),
-        VoxCPM2GGUFAdapter(), MossTTSNanoOnnxAdapter(),
+        VoxCPM2GGUFAdapter(), MossTTSNanoOnnxAdapter(), BreezeTTS2GGUFAdapter(),
     ):
         if adapter.model_name not in default_registry.list_models():
             default_registry.register(adapter)

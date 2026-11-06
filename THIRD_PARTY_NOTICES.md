@@ -18,21 +18,31 @@ Windows wheel 包含用于 GGUF 推理的 llama.cpp / ggml CPU、CUDA、Vulkan �
 
 ## Python 运行依赖
 
-ONNX Runtime、NumPy、librosa、SoundFile、ModelScope、gguf、tokenizers 等依赖由安装器分别安装，继续使用各自发行包携带的 LICENSE/NOTICE。依赖清单和准确版本见 [pyproject.toml](https://github.com/RoversCode/StreamVox/blob/v2.0.0/pyproject.toml) 与 [uv.lock](https://github.com/RoversCode/StreamVox/blob/v2.0.0/uv.lock)。SDK 的 Apache-2.0 声明不更改这些依赖的许可证。
+ONNX Runtime、NumPy、librosa、SoundFile、ModelScope、gguf、tokenizers 等依赖由安装器分别安装，继续使用各自发行包携带的 LICENSE/NOTICE。依赖清单和准确版本见 [pyproject.toml](https://github.com/RoversCode/StreamVox/blob/v2.1.0/pyproject.toml) 与 [uv.lock](https://github.com/RoversCode/StreamVox/blob/v2.1.0/uv.lock)。SDK 的 Apache-2.0 声明不更改这些依赖的许可证。
 
 `torch`、`torchaudio`、`torchvision` 不属于 SDK 的运行依赖。离线导出或数值对照工具使用的参考项目与工具依赖，应在对应开发环境中遵循其原条款。
 
 ## 模型和适配来源
 
-StreamVox 适配 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)、[Fish Speech / S2-Pro](https://github.com/fishaudio/fish-speech)、[VoxCPM](https://github.com/OpenBMB/VoxCPM) 和 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano)。模型权重不包含在 SDK wheel 中，转换后的 GGUF/ONNX 权重也继续继承上游许可。
+StreamVox 适配 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)、[Fish Speech / S2-Pro](https://github.com/fishaudio/fish-speech)、[VoxCPM](https://github.com/OpenBMB/VoxCPM)、[MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 和 [Breeze TTS 2](https://github.com/breezeblue-ai/breeze-tts)。模型权重不包含在 SDK wheel 中，转换后的 GGUF/ONNX 权重也继续继承上游许可。
 
-模型名称、原始权利人、下载来源和商业使用边界集中维护在 [模型许可表](https://github.com/RoversCode/StreamVox/blob/v2.0.0/docs/model-licenses.md)。其中 S2-Pro 的 Fish Audio Research License 与 SDK 的 Apache-2.0 分开适用。Built with Fish Audio。
+模型名称、原始权利人、下载来源和商业使用边界集中维护在 [模型许可表](https://github.com/RoversCode/StreamVox/blob/v2.1.0/docs/model-licenses.md)。其中 S2-Pro 的 Fish Audio Research License 与 SDK 的 Apache-2.0 分开适用。Built with Fish Audio。
 
 S2-Pro 原许可要求的模型归属声明为：
 
 > This model is licensed under the Fish Audio Research License, Copyright © 39 AI, INC. All Rights Reserved.
 
 若纳入上游源码、派生实现或新的权重转换，维护者应记录实际来源提交、保留原始声明，并按照该提交对应的许可证履行义务。上游当前主分支的许可不能自动替换历史版本的许可。尚未核实来源的材料不应被统一标注为 StreamVox 自有代码。
+
+## Breeze TTS 2 派生运算
+
+`streamvox/models/breeze/` 与 `tools/breeze_reference/` 中的模型公式、模板、GGUF 布局转换和流式状态参考 [breezeblue-ai/breeze-tts](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3) 的提交 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。上游模型实现保留 Copyright 2025 Sesame and The HuggingFace Inc. team. All rights reserved.，源码采用 Apache License, Version 2.0，许可原文见 [副本](third_party/licenses/breeze-tts-Apache-2.0.txt)。音频编解码运算参考 Alibaba Cloud / Qwen Team 的 [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，对应 `qwen-tts==0.1.1`，采用 Apache-2.0。
+
+`breeze-tts-2-gguf` 固定[模型检查点](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4) `3e28c5151381a722f1d8661b4118c298caa77aa4`。Qwen3 主干及深度解码器使用 GGUF，完整保留十六码本嵌入和十五组位置输出头；文本、音频嵌入、深度条件投影和音频编解码器使用 FP32 ONNX。深度码本表采用等价投影 `E'=E@P.T`，生成权重精确提升为 FP32 或保留原始 BF16，未量化或微调。
+
+Breeze 权重、衍生模型及自托管输出的研究与非商业使用限制独立于源码许可，见 [模型许可](docs/model-licenses.md)。分发转换 bundle 应保留原始模型许可和归属材料。SDK 运行不需要 Torch，离线导出与数值对照依赖在独立环境中遵循其原条款。
+
+音频模型原版权：Copyright 2026 The Qwen team, Alibaba Group and the HuggingFace Inc. team. All rights reserved.
 
 ## 示例与参考音频
 

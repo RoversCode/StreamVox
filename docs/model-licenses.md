@@ -16,6 +16,12 @@ StreamVox 自有代码采用 Apache-2.0。模型权重、词表、音频编解�
 | `voxcpm2-gguf` | [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) / [VoxCPM](https://github.com/OpenBMB/VoxCPM)，OpenBMB | [ChengHee/voxcpm2-gguf](https://modelscope.cn/models/ChengHee/voxcpm2-gguf) | Apache-2.0；商业使用仍须遵守其完整条款。 |
 | `moss-tts-nano-onnx` | [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) / [100M 权重](https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano-100M)，OpenMOSS Team、Fudan University、SII、MOSI | [ChengHee/moss-tts-nano-onnx](https://modelscope.cn/models/ChengHee/moss-tts-nano-onnx) | Apache-2.0；商业使用仍须遵守其完整条款。 |
 
+## Breeze TTS 2
+
+`breeze-tts-2-gguf` 使用本地导出的 [BreezeBlue/breeze-tts-2](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4)，固定检查点为 `3e28c5151381a722f1d8661b4118c298caa77aa4`；参考[源码提交](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3)为 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。目前没有默认转换下载仓库。
+
+2026-11-04 核对的上游说明明确：源码采用 Apache-2.0，**模型权重、衍生模型和自托管输出仅供研究及非商业用途**。Qwen3 主干与完整深度解码器转换为 GGUF，其余编码、条件投影及声码器使用 ONNX；精确提升到 FP32 或保留原始 BF16、不量化的转换均不改变其许可。再分发时应保留该检查点的完整许可及归属文件；SDK 的 Apache-2.0 不授予该模型的商业使用权。
+
 ## S2-Pro
 
 当前默认转换仓库附带的是 [Fish Audio Research License 原文](https://huggingface.co/fishaudio/s2-pro/blob/1de9996b6be38b745688de084d87a5633f714e4e/LICENSE.md)。该许可没有授予商业使用权，要求商业用途另行获得 Fish Audio 书面许可；其分发、归属声明和使用限制也继续适用。Built with Fish Audio。
