@@ -1,0 +1,4001 @@
+{
+  "schema_version": 2,
+  "model": "breeze-tts-2-gguf",
+  "measurement_date": "2026-11-04",
+  "verification_completed_date": "2026-11-06",
+  "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3",
+  "checkpoint_revision": "3e28c5151381a722f1d8661b4118c298caa77aa4",
+  "llama_cpp": {
+    "version": "b8683",
+    "commit": "d0a6dfeb28a09831d904fc4d910ddb740da82834",
+    "native_libraries_modified": false
+  },
+  "hardware": {
+    "gpu": "NVIDIA GeForce RTX 4090",
+    "gpu_memory_mib": 24564,
+    "cpu": "Intel Core i7-13700KF",
+    "os": "Windows 11",
+    "driver": "610.88"
+  },
+  "software": {
+    "python": "3.12",
+    "onnxruntime": "1.21.1",
+    "reference_torch": "2.9.1+cpu",
+    "transformers": "4.57.3",
+    "gguf": "0.18.0"
+  },
+  "precision": {
+    "generation_weights": "bfloat16",
+    "preprojected_audio_table": "float32",
+    "normalization_weights": "float32",
+    "kv_cache": "float32",
+    "onnx_components": "float32",
+    "quantized": false
+  },
+  "components": {
+    "backbone": {
+      "runtime": "llama.cpp",
+      "architecture": "qwen3",
+      "layers": 28,
+      "hidden_size": 2048,
+      "output_classes": 2052,
+      "output_head_tied_to_unused_input_table": true
+    },
+    "depth": {
+      "runtime": "llama.cpp",
+      "architecture": "llama",
+      "layers": 12,
+      "hidden_size": 1024,
+      "num_codebooks": 16,
+      "position_output_heads": 15,
+      "vocab_rows": 32816,
+      "selected_rows_per_position": 2051,
+      "extra_zero_rows": 2051,
+      "embedding_projection": "E'=E@P.T"
+    },
+    "onnx": {
+      "text_encoder": "cpu",
+      "audio_embedding": "cpu",
+      "depth_conditioner": "cpu",
+      "audio_encoder": "lazy cpu",
+      "decoder_step": "cuda"
+    }
+  },
+  "native_precision_guards": {
+    "cuda_microbatch_tokens": 2,
+    "reason": "固定版本四到十六列 CUDA 矩阵核使用内联 TF32，普通 cuBLAS 开关不能阻止；两个词的原生微批次保持完整序列和分支语义。",
+    "flash_attention": false,
+    "flash_attention_reason": "固定版本的融合注意力会将 FP32 键和值转为 FP16。",
+    "context_allocation": "按请求长度向上对齐并扩容，只重建缓存，保留已加载权重。"
+  },
+  "gguf_assets": {
+    "backbone.gguf": {
+      "size": 2827491968,
+      "sha256": "f31a23e0844cfaa0a00bb1a347bbe4b87b333b7115569ed099e80019bae582d4"
+    },
+    "depth.gguf": {
+      "size": 868625888,
+      "sha256": "ed645069ab919387067804619c3e8c2de249988a0432a7f6fa04424252612665"
+    }
+  },
+  "upstream_reference_control": {
+    "backbone": {
+      "reference_precision": "float32",
+      "maximum_absolute_error": 1.3470649719238281e-05
+    },
+    "depth": {
+      "reference_precision": "float32",
+      "maximum_absolute_error": 1.1444091796875e-05
+    }
+  },
+  "generation_validation": {
+    "float32": {
+      "cpu": {
+        "backbone": {
+          "component": "backbone",
+          "cases": 7,
+          "backend": "cpu",
+          "weight_precision": "float32",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.0002,
+            "pointwise_rtol": 0.0004,
+            "relative_l2_max": 0.0001,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 1e-07,
+            "max_probability_difference": 5e-05
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 8.52346420288086e-06,
+              "rms": 1.8001534606732687e-06,
+              "relative_l2": 1.139486753586795e-06,
+              "kl_reference_to_actual": 3.175212182775312e-12,
+              "max_probability_difference": 6.462036932219917e-07,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.09024524688720703,
+              "valid_vocab_size": 2049
+            },
+            "hidden": {
+              "max_abs": 7.62939453125e-06,
+              "rms": 9.979664015726498e-07,
+              "relative_l2": 1.1337442445531638e-06
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        },
+        "depth": {
+          "component": "depth",
+          "cases": 32,
+          "backend": "cpu",
+          "weight_precision": "float32",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.0002,
+            "pointwise_rtol": 0.0004,
+            "relative_l2_max": 0.0001,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 1e-07,
+            "max_probability_difference": 5e-05
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 1.7762184143066406e-05,
+              "rms": 3.7175540279935053e-06,
+              "relative_l2": 1.6067827438218036e-06,
+              "kl_reference_to_actual": 1.0775527378294041e-11,
+              "max_probability_difference": 3.803699928917048e-07,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.012885570526123047,
+              "valid_vocab_size": 2048
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        }
+      },
+      "cuda": {
+        "backbone": {
+          "component": "backbone",
+          "cases": 7,
+          "backend": "cuda",
+          "weight_precision": "float32",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.0002,
+            "pointwise_rtol": 0.0004,
+            "relative_l2_max": 0.0001,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 1e-07,
+            "max_probability_difference": 5e-05
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 5.9604644775390625e-06,
+              "rms": 1.4917048261140214e-06,
+              "relative_l2": 9.013594806893649e-07,
+              "kl_reference_to_actual": 1.6516116974492967e-12,
+              "max_probability_difference": 5.362379384421523e-07,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.09024524688720703,
+              "valid_vocab_size": 2049
+            },
+            "hidden": {
+              "max_abs": 7.62939453125e-06,
+              "rms": 8.289433647460363e-07,
+              "relative_l2": 9.491985704431383e-07
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        },
+        "depth": {
+          "component": "depth",
+          "cases": 32,
+          "backend": "cuda",
+          "weight_precision": "float32",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.0002,
+            "pointwise_rtol": 0.0004,
+            "relative_l2_max": 0.0001,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 1e-07,
+            "max_probability_difference": 5e-05
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 1.1444091796875e-05,
+              "rms": 2.9338862690556467e-06,
+              "relative_l2": 1.4124379220818896e-06,
+              "kl_reference_to_actual": 4.3430671695056454e-12,
+              "max_probability_difference": 2.6034101619637484e-07,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.012885570526123047,
+              "valid_vocab_size": 2048
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        }
+      }
+    },
+    "bfloat16": {
+      "cpu": {
+        "backbone": {
+          "component": "backbone",
+          "cases": 7,
+          "backend": "cpu",
+          "weight_precision": "bfloat16",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.01,
+            "pointwise_rtol": 0.02,
+            "pointwise_hard_gate": false,
+            "relative_l2_max": 0.025,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 0.003,
+            "max_probability_difference": 0.035
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 0.02971053123474121,
+              "rms": 0.006528676608066608,
+              "relative_l2": 0.004138541720014326,
+              "pointwise_violations": 132,
+              "element_count": 22572,
+              "kl_reference_to_actual": 8.838502570780206e-05,
+              "max_probability_difference": 0.002575102760245168,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.09024524688720703,
+              "valid_vocab_size": 2049
+            },
+            "hidden": {
+              "max_abs": 0.016959965229034424,
+              "rms": 0.003471960300428909,
+              "relative_l2": 0.003975639222122391,
+              "pointwise_violations": 0,
+              "element_count": 22528
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        },
+        "depth": {
+          "component": "depth",
+          "cases": 32,
+          "backend": "cpu",
+          "weight_precision": "bfloat16",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.01,
+            "pointwise_rtol": 0.02,
+            "pointwise_hard_gate": false,
+            "relative_l2_max": 0.025,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 0.003,
+            "max_probability_difference": 0.035
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 0.044144630432128906,
+              "rms": 0.013120270904196502,
+              "relative_l2": 0.006595391344576442,
+              "pointwise_violations": 1346,
+              "element_count": 98448,
+              "kl_reference_to_actual": 0.00010047861231576752,
+              "max_probability_difference": 0.0010778933822234438,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.012885570526123047,
+              "valid_vocab_size": 2048
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        }
+      },
+      "cuda": {
+        "backbone": {
+          "component": "backbone",
+          "cases": 7,
+          "backend": "cuda",
+          "weight_precision": "bfloat16",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.01,
+            "pointwise_rtol": 0.02,
+            "pointwise_hard_gate": false,
+            "relative_l2_max": 0.025,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 0.003,
+            "max_probability_difference": 0.035
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 0.03806495666503906,
+              "rms": 0.008187260384319094,
+              "relative_l2": 0.004958431957056411,
+              "pointwise_violations": 163,
+              "element_count": 22572,
+              "kl_reference_to_actual": 0.00032324363180318526,
+              "max_probability_difference": 0.00906480977760965,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.09024524688720703,
+              "valid_vocab_size": 2049
+            },
+            "hidden": {
+              "max_abs": 0.01606851816177368,
+              "rms": 0.0035328948132019844,
+              "relative_l2": 0.004045413533462192,
+              "pointwise_violations": 5,
+              "element_count": 22528
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        },
+        "depth": {
+          "component": "depth",
+          "cases": 32,
+          "backend": "cuda",
+          "weight_precision": "bfloat16",
+          "kv_precision": "float32",
+          "flash_attention": false,
+          "numeric_policy": {
+            "pointwise_atol": 0.01,
+            "pointwise_rtol": 0.02,
+            "pointwise_hard_gate": false,
+            "relative_l2_max": 0.025,
+            "reference_norm_floor": 1e-06,
+            "logits_temperature": 0.9,
+            "kl_reference_to_actual_max": 0.003,
+            "max_probability_difference": 0.035
+          },
+          "output_metrics": {
+            "logits": {
+              "max_abs": 0.04833412170410156,
+              "rms": 0.012606869894918138,
+              "relative_l2": 0.005576278539294512,
+              "pointwise_violations": 705,
+              "element_count": 98448,
+              "kl_reference_to_actual": 9.860545080163873e-05,
+              "max_probability_difference": 0.0017170966957717193,
+              "top1_agreement": 1.0,
+              "min_top1_margin": 0.012885570526123047,
+              "valid_vocab_size": 2048
+            }
+          },
+          "independent_native_and_reference_caches": true,
+          "reference": "固定上游权重精确提升的 Torch FP32 前向；BF16 存储使用独立低精度误差界限。"
+        }
+      }
+    }
+  },
+  "onnx_validation": {
+    "text_encoder": {
+      "maximum_absolute_error": 1.049041748046875e-05,
+      "cases": 4,
+      "numeric_policy": {
+        "pointwise_atol": 0.0002,
+        "pointwise_rtol": 0.0004,
+        "relative_l2_max": 0.0001,
+        "reference_norm_floor": 1e-06,
+        "logits_temperature": 0.9,
+        "kl_reference_to_actual_max": 1e-07,
+        "max_probability_difference": 5e-05
+      },
+      "output_metrics": {
+        "embeddings": {
+          "max_abs": 1.049041748046875e-05,
+          "rms": 4.1665473652468957e-07,
+          "relative_l2": 1.226386626678422e-06
+        }
+      },
+      "inputs": [
+        {
+          "name": "input_ids",
+          "type": "tensor(int64)",
+          "shape": [
+            "batch",
+            "sequence_length"
+          ]
+        },
+        {
+          "name": "attention_mask",
+          "type": "tensor(int64)",
+          "shape": [
+            "batch",
+            "sequence_length"
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "embeddings",
+          "type": "tensor(float)",
+          "shape": [
+            "batch",
+            "sequence_length",
+            2048
+          ]
+        }
+      ],
+      "upstream_maximum_absolute_error": 0.0
+    },
+    "audio_embedding": {
+      "maximum_absolute_error": 2.9802322387695312e-08,
+      "cases": 3,
+      "numeric_policy": {
+        "pointwise_atol": 0.0002,
+        "pointwise_rtol": 0.0004,
+        "relative_l2_max": 0.0001,
+        "reference_norm_floor": 1e-06,
+        "logits_temperature": 0.9,
+        "kl_reference_to_actual_max": 1e-07,
+        "max_probability_difference": 5e-05
+      },
+      "output_metrics": {
+        "embeddings": {
+          "max_abs": 2.9802322387695312e-08,
+          "rms": 2.4100261251757185e-10,
+          "relative_l2": 1.3624542778659348e-09
+        }
+      },
+      "inputs": [
+        {
+          "name": "codes",
+          "type": "tensor(int64)",
+          "shape": [
+            "batch",
+            "sequence_length",
+            16
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "embeddings",
+          "type": "tensor(float)",
+          "shape": [
+            "batch",
+            "sequence_length",
+            2048
+          ]
+        }
+      ],
+      "upstream_maximum_absolute_error": 0.0
+    },
+    "depth_conditioner": {
+      "validated": true,
+      "source": "depth_decoder.model.inputs_embeds_projector.weight",
+      "source_dtype": "bfloat16",
+      "precision": "float32",
+      "formula": "backbone_hidden @ inputs_embeds_projector.weight.T",
+      "input_size": 2048,
+      "output_size": 1024,
+      "cases": 3,
+      "maximum_absolute_error": 1.430511474609375e-06,
+      "numeric_policy": {
+        "pointwise_atol": 0.0002,
+        "pointwise_rtol": 0.0004,
+        "relative_l2_max": 0.0001,
+        "reference_norm_floor": 1e-06,
+        "logits_temperature": 0.9,
+        "kl_reference_to_actual_max": 1e-07,
+        "max_probability_difference": 5e-05
+      },
+      "inputs": [
+        {
+          "name": "backbone_hidden",
+          "type": "tensor(float)",
+          "shape": [
+            "batch",
+            2048
+          ]
+        }
+      ],
+      "outputs": [
+        {
+          "name": "embeddings",
+          "type": "tensor(float)",
+          "shape": [
+            "batch",
+            1024
+          ]
+        }
+      ]
+    }
+  },
+  "codec_validation": {
+    "atol": 0.0001,
+    "rtol": 0.001,
+    "encoder_codes_equal": true,
+    "encoder_input_samples": 3953,
+    "decoder_max_abs_error": 3.688037395477295e-06,
+    "decoder_step_max_abs_error": 2.8759241104125977e-06,
+    "decoder_frames": 3
+  },
+  "shared_codec_and_encoder_weights": "沿用原检查点及已验证的同内容 FP32 ONNX 文件，逐文件 SHA256 校验后收录新清单。",
+  "benchmark": {
+    "status": "passed",
+    "bundle": "ckpts/breeze-tts-2-gguf",
+    "manifest_sha256": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+    "asset_count": 308,
+    "platform": "Windows-11-10.0.26200-SP0",
+    "onnxruntime_version": "1.21.1",
+    "gpu": [
+      "NVIDIA GeForce RTX 4090",
+      "24564",
+      "610.88"
+    ],
+    "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+    "instruction": "一位声音清晰、语气自然的年轻女性。",
+    "parameters": {
+      "seed": 42,
+      "max_new_tokens": 300,
+      "chunk_frames": 2
+    },
+    "warmups_per_mode": 1,
+    "measurements_per_mode": 3,
+    "gpu_baseline_used_mib": 803,
+    "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+    "real_cfg_reference_capture_scope": "仅设计预热首个正负文本预填充的CPU嵌入和原生接口已返回分数；三轮正式计时关闭捕获，不额外读回设备状态。",
+    "results": {
+      "design": {
+        "warmup": {
+          "status": "passed",
+          "failures": [],
+          "instruction": "一位声音清晰、语气自然的年轻女性。",
+          "cfg_scale": 4.0,
+          "first_chunk_seconds": 0.7414677999913692,
+          "elapsed_seconds": 4.482921099988744,
+          "audio_seconds": 6.24,
+          "rtf": 0.718416842946914,
+          "frames": 78,
+          "samples": 149760,
+          "chunk_count": 39,
+          "eos_before_limit": true,
+          "termination": "eos",
+          "finite_audio": true,
+          "peak_abs": 0.26441308856010437,
+          "rms": 0.04877975583076477,
+          "calls": {
+            "backbone": 80,
+            "depth": 1248,
+            "decoder": 78
+          },
+          "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+          "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+          "sampled_resource_peak": {
+            "working_set_mib": 7788.75,
+            "private_commit_mib": 10652.828125,
+            "gpu_total_used_mib": 5431,
+            "gpu_total_delta_mib": 4628
+          }
+        },
+        "trials": [
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.3641725000925362,
+            "elapsed_seconds": 4.091895499965176,
+            "audio_seconds": 6.24,
+            "rtf": 0.6557524839687782,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7793.80859375,
+              "private_commit_mib": 10610.28515625,
+              "gpu_total_used_mib": 5431,
+              "gpu_total_delta_mib": 4628
+            }
+          },
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.37343320017680526,
+            "elapsed_seconds": 4.104474900057539,
+            "audio_seconds": 6.24,
+            "rtf": 0.6577684134707595,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7794.97265625,
+              "private_commit_mib": 10611.43359375,
+              "gpu_total_used_mib": 5431,
+              "gpu_total_delta_mib": 4628
+            }
+          },
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.3783674999140203,
+            "elapsed_seconds": 4.147203400032595,
+            "audio_seconds": 6.24,
+            "rtf": 0.664615929492403,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7795.00390625,
+              "private_commit_mib": 10611.43359375,
+              "gpu_total_used_mib": 5431,
+              "gpu_total_delta_mib": 4628
+            }
+          }
+        ],
+        "median_first_chunk_seconds": 0.37343320017680526,
+        "median_elapsed_seconds": 4.104474900057539,
+        "median_rtf": 0.6577684134707595,
+        "median_audio_seconds": 6.24,
+        "repeated_measured_audio_equal": true,
+        "repeated_measured_codes_equal": true
+      },
+      "clone": {
+        "warmup": {
+          "status": "passed",
+          "failures": [],
+          "instruction": "",
+          "cfg_scale": 1.0,
+          "first_chunk_seconds": 0.5596245999913663,
+          "elapsed_seconds": 4.141843099845573,
+          "audio_seconds": 6.16,
+          "rtf": 0.6723771265983073,
+          "frames": 77,
+          "samples": 147840,
+          "chunk_count": 39,
+          "eos_before_limit": true,
+          "termination": "eos",
+          "finite_audio": true,
+          "peak_abs": 0.25560280680656433,
+          "rms": 0.050815314054489136,
+          "calls": {
+            "backbone": 78,
+            "depth": 1232,
+            "decoder": 77
+          },
+          "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+          "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+          "sampled_resource_peak": {
+            "working_set_mib": 8314.5859375,
+            "private_commit_mib": 11288.921875,
+            "gpu_total_used_mib": 5418,
+            "gpu_total_delta_mib": 4615
+          }
+        },
+        "trials": [
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.497562900185585,
+            "elapsed_seconds": 4.028498200001195,
+            "audio_seconds": 6.16,
+            "rtf": 0.6539769805196745,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8318.51171875,
+              "private_commit_mib": 11292.3515625,
+              "gpu_total_used_mib": 5418,
+              "gpu_total_delta_mib": 4615
+            }
+          },
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.45395729993470013,
+            "elapsed_seconds": 3.876759700011462,
+            "audio_seconds": 6.16,
+            "rtf": 0.6293441071447179,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8320.4765625,
+              "private_commit_mib": 11294.3515625,
+              "gpu_total_used_mib": 5418,
+              "gpu_total_delta_mib": 4615
+            }
+          },
+          {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.44050319981761277,
+            "elapsed_seconds": 4.113135099876672,
+            "audio_seconds": 6.16,
+            "rtf": 0.6677167369929662,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8321.33984375,
+              "private_commit_mib": 11295.20703125,
+              "gpu_total_used_mib": 5418,
+              "gpu_total_delta_mib": 4615
+            }
+          }
+        ],
+        "median_first_chunk_seconds": 0.45395729993470013,
+        "median_elapsed_seconds": 4.028498200001195,
+        "median_rtf": 0.6539769805196745,
+        "median_audio_seconds": 6.16,
+        "repeated_measured_audio_equal": true,
+        "repeated_measured_codes_equal": true
+      }
+    },
+    "runs": {
+      "design-warmup": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "一位声音清晰、语气自然的年轻女性。",
+        "cfg_scale": 4.0,
+        "first_chunk_seconds": 0.7414677999913692,
+        "elapsed_seconds": 4.482921099988744,
+        "audio_seconds": 6.24,
+        "rtf": 0.718416842946914,
+        "frames": 78,
+        "samples": 149760,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.26441308856010437,
+        "rms": 0.04877975583076477,
+        "calls": {
+          "backbone": 80,
+          "depth": 1248,
+          "decoder": 78
+        },
+        "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+        "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+        "sampled_resource_peak": {
+          "working_set_mib": 7788.75,
+          "private_commit_mib": 10652.828125,
+          "gpu_total_used_mib": 5431,
+          "gpu_total_delta_mib": 4628
+        }
+      },
+      "design-1": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "一位声音清晰、语气自然的年轻女性。",
+        "cfg_scale": 4.0,
+        "first_chunk_seconds": 0.3641725000925362,
+        "elapsed_seconds": 4.091895499965176,
+        "audio_seconds": 6.24,
+        "rtf": 0.6557524839687782,
+        "frames": 78,
+        "samples": 149760,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.26441308856010437,
+        "rms": 0.04877975583076477,
+        "calls": {
+          "backbone": 80,
+          "depth": 1248,
+          "decoder": 78
+        },
+        "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+        "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+        "sampled_resource_peak": {
+          "working_set_mib": 7793.80859375,
+          "private_commit_mib": 10610.28515625,
+          "gpu_total_used_mib": 5431,
+          "gpu_total_delta_mib": 4628
+        }
+      },
+      "design-2": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "一位声音清晰、语气自然的年轻女性。",
+        "cfg_scale": 4.0,
+        "first_chunk_seconds": 0.37343320017680526,
+        "elapsed_seconds": 4.104474900057539,
+        "audio_seconds": 6.24,
+        "rtf": 0.6577684134707595,
+        "frames": 78,
+        "samples": 149760,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.26441308856010437,
+        "rms": 0.04877975583076477,
+        "calls": {
+          "backbone": 80,
+          "depth": 1248,
+          "decoder": 78
+        },
+        "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+        "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+        "sampled_resource_peak": {
+          "working_set_mib": 7794.97265625,
+          "private_commit_mib": 10611.43359375,
+          "gpu_total_used_mib": 5431,
+          "gpu_total_delta_mib": 4628
+        }
+      },
+      "design-3": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "一位声音清晰、语气自然的年轻女性。",
+        "cfg_scale": 4.0,
+        "first_chunk_seconds": 0.3783674999140203,
+        "elapsed_seconds": 4.147203400032595,
+        "audio_seconds": 6.24,
+        "rtf": 0.664615929492403,
+        "frames": 78,
+        "samples": 149760,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.26441308856010437,
+        "rms": 0.04877975583076477,
+        "calls": {
+          "backbone": 80,
+          "depth": 1248,
+          "decoder": 78
+        },
+        "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+        "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+        "sampled_resource_peak": {
+          "working_set_mib": 7795.00390625,
+          "private_commit_mib": 10611.43359375,
+          "gpu_total_used_mib": 5431,
+          "gpu_total_delta_mib": 4628
+        }
+      },
+      "clone-warmup": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "",
+        "cfg_scale": 1.0,
+        "first_chunk_seconds": 0.5596245999913663,
+        "elapsed_seconds": 4.141843099845573,
+        "audio_seconds": 6.16,
+        "rtf": 0.6723771265983073,
+        "frames": 77,
+        "samples": 147840,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.25560280680656433,
+        "rms": 0.050815314054489136,
+        "calls": {
+          "backbone": 78,
+          "depth": 1232,
+          "decoder": 77
+        },
+        "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+        "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+        "sampled_resource_peak": {
+          "working_set_mib": 8314.5859375,
+          "private_commit_mib": 11288.921875,
+          "gpu_total_used_mib": 5418,
+          "gpu_total_delta_mib": 4615
+        }
+      },
+      "clone-1": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "",
+        "cfg_scale": 1.0,
+        "first_chunk_seconds": 0.497562900185585,
+        "elapsed_seconds": 4.028498200001195,
+        "audio_seconds": 6.16,
+        "rtf": 0.6539769805196745,
+        "frames": 77,
+        "samples": 147840,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.25560280680656433,
+        "rms": 0.050815314054489136,
+        "calls": {
+          "backbone": 78,
+          "depth": 1232,
+          "decoder": 77
+        },
+        "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+        "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+        "sampled_resource_peak": {
+          "working_set_mib": 8318.51171875,
+          "private_commit_mib": 11292.3515625,
+          "gpu_total_used_mib": 5418,
+          "gpu_total_delta_mib": 4615
+        }
+      },
+      "clone-2": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "",
+        "cfg_scale": 1.0,
+        "first_chunk_seconds": 0.45395729993470013,
+        "elapsed_seconds": 3.876759700011462,
+        "audio_seconds": 6.16,
+        "rtf": 0.6293441071447179,
+        "frames": 77,
+        "samples": 147840,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.25560280680656433,
+        "rms": 0.050815314054489136,
+        "calls": {
+          "backbone": 78,
+          "depth": 1232,
+          "decoder": 77
+        },
+        "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+        "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+        "sampled_resource_peak": {
+          "working_set_mib": 8320.4765625,
+          "private_commit_mib": 11294.3515625,
+          "gpu_total_used_mib": 5418,
+          "gpu_total_delta_mib": 4615
+        }
+      },
+      "clone-3": {
+        "status": "passed",
+        "failures": [],
+        "instruction": "",
+        "cfg_scale": 1.0,
+        "first_chunk_seconds": 0.44050319981761277,
+        "elapsed_seconds": 4.113135099876672,
+        "audio_seconds": 6.16,
+        "rtf": 0.6677167369929662,
+        "frames": 77,
+        "samples": 147840,
+        "chunk_count": 39,
+        "eos_before_limit": true,
+        "termination": "eos",
+        "finite_audio": true,
+        "peak_abs": 0.25560280680656433,
+        "rms": 0.050815314054489136,
+        "calls": {
+          "backbone": 78,
+          "depth": 1232,
+          "decoder": 77
+        },
+        "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+        "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+        "sampled_resource_peak": {
+          "working_set_mib": 8321.33984375,
+          "private_commit_mib": 11295.20703125,
+          "gpu_total_used_mib": 5418,
+          "gpu_total_delta_mib": 4615
+        }
+      }
+    },
+    "initialization_seconds": 12.728906499920413,
+    "actual_backends": {
+      "llama": "cuda",
+      "onnx": "cuda",
+      "onnx_sessions": {
+        "runtime.decoder.session": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "runtime.depth_conditioner.session": [
+          "CPUExecutionProvider"
+        ],
+        "runtime.audio_embedding.session": [
+          "CPUExecutionProvider"
+        ],
+        "runtime.text_encoder.session": [
+          "CPUExecutionProvider"
+        ]
+      }
+    },
+    "runtime_metadata": {
+      "gguf_backend": "cuda",
+      "onnx_backend": "cuda",
+      "generation_backend": "llama.cpp",
+      "text_encoder_backend": "cpu",
+      "audio_encoder_backend": "cpu",
+      "audio_embedding_backend": "cpu",
+      "depth_conditioner_backend": "cpu",
+      "kv_precision": "float32",
+      "weight_precision": "bfloat16",
+      "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+    },
+    "make_prompt_seconds": 0.5974936001002789,
+    "clone_reference": {
+      "source": "design-3.wav",
+      "sample_rate": 24000,
+      "samples": 149760,
+      "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "codes_frames": 78
+    },
+    "actual_backends_after_reference": {
+      "llama": "cuda",
+      "onnx": "cuda",
+      "onnx_sessions": {
+        "runtime.decoder.session": [
+          "CUDAExecutionProvider",
+          "CPUExecutionProvider"
+        ],
+        "runtime.depth_conditioner.session": [
+          "CPUExecutionProvider"
+        ],
+        "runtime.audio_embedding.session": [
+          "CPUExecutionProvider"
+        ],
+        "runtime.text_encoder.session": [
+          "CPUExecutionProvider"
+        ],
+        "runtime.audio_encoder.session": [
+          "CPUExecutionProvider"
+        ]
+      }
+    },
+    "manifest_sha256_after_measurement": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+    "gpu_used_mib_after_shutdown": 1216,
+    "resource_peak": {
+      "working_set_mib": 8321.33984375,
+      "private_commit_mib": 11295.20703125,
+      "gpu_total_used_mib": 5431,
+      "gpu_total_delta_mib": 4628
+    },
+    "phase_peaks": {
+      "clone-1": {
+        "working_set_mib": 8318.51171875,
+        "private_commit_mib": 11292.3515625,
+        "gpu_total_used_mib": 5418,
+        "gpu_total_delta_mib": 4615
+      },
+      "clone-2": {
+        "working_set_mib": 8320.4765625,
+        "private_commit_mib": 11294.3515625,
+        "gpu_total_used_mib": 5418,
+        "gpu_total_delta_mib": 4615
+      },
+      "clone-3": {
+        "working_set_mib": 8321.33984375,
+        "private_commit_mib": 11295.20703125,
+        "gpu_total_used_mib": 5418,
+        "gpu_total_delta_mib": 4615
+      },
+      "clone-warmup": {
+        "working_set_mib": 8314.5859375,
+        "private_commit_mib": 11288.921875,
+        "gpu_total_used_mib": 5418,
+        "gpu_total_delta_mib": 4615
+      },
+      "design-1": {
+        "working_set_mib": 7793.80859375,
+        "private_commit_mib": 10610.28515625,
+        "gpu_total_used_mib": 5431,
+        "gpu_total_delta_mib": 4628
+      },
+      "design-2": {
+        "working_set_mib": 7794.97265625,
+        "private_commit_mib": 10611.43359375,
+        "gpu_total_used_mib": 5431,
+        "gpu_total_delta_mib": 4628
+      },
+      "design-3": {
+        "working_set_mib": 7795.00390625,
+        "private_commit_mib": 10611.43359375,
+        "gpu_total_used_mib": 5431,
+        "gpu_total_delta_mib": 4628
+      },
+      "design-warmup": {
+        "working_set_mib": 7788.75,
+        "private_commit_mib": 10652.828125,
+        "gpu_total_used_mib": 5431,
+        "gpu_total_delta_mib": 4628
+      },
+      "initialize": {
+        "working_set_mib": 6488.359375,
+        "private_commit_mib": 9184.7734375,
+        "gpu_total_used_mib": 5107,
+        "gpu_total_delta_mib": 4304
+      },
+      "make_prompt": {
+        "working_set_mib": 8153.328125,
+        "private_commit_mib": 11015.6015625,
+        "gpu_total_used_mib": 5418,
+        "gpu_total_delta_mib": 4615
+      },
+      "shutdown": {
+        "working_set_mib": 8253.375,
+        "private_commit_mib": 10810.5390625,
+        "gpu_total_used_mib": 4700,
+        "gpu_total_delta_mib": 3897
+      }
+    }
+  },
+  "actual_cfg_prefill_diagnostic": {
+    "schema_version": 1,
+    "scope": "原 BF16 权重精确提升到处理器 FP32 的零缓存前向，对照已捕获的原生 BF16 CUDA 分数；仅两个真实预填充案例，不涉及后续生成或音质判断。",
+    "capture": {
+      "path": "tests/output/breeze-gguf-cuda-controlled/real-cfg-prefill.npz",
+      "sha256": "b26dbb10864feb65730a0c1ab585726650d4bf686d56a2229f61d35828ad07a3",
+      "benchmark_manifest_sha256": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "bfloat16",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      }
+    },
+    "reference": {
+      "python": ".artifacts/breeze/export-env/Scripts/python.exe",
+      "torch_version": "2.9.1+cpu",
+      "transformers_version": "4.57.3",
+      "numpy_version": "2.4.6",
+      "safetensors_version": "0.6.2",
+      "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3",
+      "checkpoint_revision": "3e28c5151381a722f1d8661b4118c298caa77aa4",
+      "source": "streamvox-breeze-research-64d416edac2b4b14b36157edabfc70b6",
+      "checkpoint": ".artifacts/breeze/checkpoint",
+      "graph_count": 1,
+      "forward_count": 2,
+      "device": "cpu",
+      "compute_dtype": "float32",
+      "source_weight_dtype": "bfloat16",
+      "threads": 2,
+      "cache": "两个分支分别使用全新空缓存；未复用任何原生 CUDA 缓存"
+    },
+    "probability_scope": {
+      "temperature": 0.9,
+      "codebook_size": 2048,
+      "valid_audio_token_id_range": [
+        0,
+        2047
+      ],
+      "eos_token_id": 2051,
+      "suppressed_token_ids": [
+        2048,
+        2049,
+        2050
+      ],
+      "valid_vocab_size": 2049,
+      "filters": "仅合法词表和温度，不应用 top_k、top_p 或重复惩罚"
+    },
+    "raw_bf16_policy": {
+      "pointwise_atol": 0.01,
+      "pointwise_rtol": 0.02,
+      "pointwise_hard_gate": false,
+      "relative_l2_max": 0.025,
+      "reference_norm_floor": 1e-06,
+      "logits_temperature": 0.9,
+      "kl_reference_to_actual_max": 0.003,
+      "max_probability_difference": 0.035
+    },
+    "branches": {
+      "positive": {
+        "meaning": "带声音设计指令的条件分支",
+        "input_shape": [
+          1,
+          32,
+          2048
+        ],
+        "positions": [
+          0
+        ],
+        "cache_length": 0,
+        "native_logits_shape": [
+          1,
+          2052
+        ],
+        "reference_logits_shape": [
+          1,
+          2052
+        ],
+        "metrics": {
+          "max_abs": 0.07951927185058594,
+          "rms": 0.005728505342981413,
+          "relative_l2": 0.0023357242318887625,
+          "kl_reference_to_actual": 0.001317649566736391,
+          "max_probability_difference": 0.020734449749081646,
+          "top1_agreement": 1.0,
+          "min_top1_margin": 0.27203369140625,
+          "valid_vocab_size": 2049,
+          "pointwise_violations": 0,
+          "element_count": 2052,
+          "reference_top1_token_id": 404,
+          "actual_top1_token_id": 404
+        },
+        "raw_bf16_policy_gate": {
+          "passed": true,
+          "failure": null
+        }
+      },
+      "negative": {
+        "meaning": "移除声音设计指令的无条件分支",
+        "input_shape": [
+          1,
+          21,
+          2048
+        ],
+        "positions": [
+          0
+        ],
+        "cache_length": 0,
+        "native_logits_shape": [
+          1,
+          2052
+        ],
+        "reference_logits_shape": [
+          1,
+          2052
+        ],
+        "metrics": {
+          "max_abs": 0.005415201187133789,
+          "rms": 0.000981201643824636,
+          "relative_l2": 0.00040594150159563346,
+          "kl_reference_to_actual": 2.672854511758557e-07,
+          "max_probability_difference": 0.00023980992207153773,
+          "top1_agreement": 1.0,
+          "min_top1_margin": 0.04881477355957031,
+          "valid_vocab_size": 2049,
+          "pointwise_violations": 0,
+          "element_count": 2052,
+          "reference_top1_token_id": 29,
+          "actual_top1_token_id": 29
+        },
+        "raw_bf16_policy_gate": {
+          "passed": true,
+          "failure": null
+        }
+      }
+    },
+    "cfg_scale_4": {
+      "formula": "negative + 4 * (positive - negative)",
+      "arithmetic_dtype": "float32",
+      "metrics": {
+        "max_abs": 0.32419395446777344,
+        "rms": 0.02341162814732256,
+        "relative_l2": 0.00830089869568239,
+        "kl_reference_to_actual": 0.020306369000354096,
+        "max_probability_difference": 0.08102318377518611,
+        "top1_agreement": 1.0,
+        "min_top1_margin": 0.1639842987060547,
+        "valid_vocab_size": 2049,
+        "pointwise_violations": 176,
+        "element_count": 2052,
+        "reference_top1_token_id": 404,
+        "actual_top1_token_id": 404
+      },
+      "raw_policy_gate_applied": false,
+      "interpretation": "仅诊断条件引导对原始数值误差的影响；不把原始分支门限直接套用于 CFG，不据此推导音质。"
+    },
+    "raw_policy_gates_passed": true,
+    "status": "passed"
+  },
+  "test_runs": {
+    "sdk": {
+      "passed": 305,
+      "skipped": 2
+    },
+    "isolated_export_gguf_numerics_runtime_sampling": {
+      "passed": 140,
+      "skipped": 0
+    },
+    "optimized_sdk": {
+      "passed": 411,
+      "skipped": 2
+    },
+    "optimized_isolated_export_numerics_runtime_sampling": {
+      "passed": 246,
+      "skipped": 0
+    },
+    "ttfa_sdk": {
+      "passed": 541,
+      "skipped": 7,
+      "warnings": 5
+    },
+    "ttfa_isolated_export_and_runtime": {
+      "passed": 421,
+      "skipped": 4,
+      "warnings": 16
+    }
+  },
+  "limits": [
+    "主干和深度每个精度、每个后端分别验证7+32组；FP32和BF16使用各自固定误差门限，没有因迁移放宽。",
+    "原始BF16存储对照的是原权重精确提升的Torch FP32数学基准，不能描述为原始GPU同精度逐位一致。",
+    "真实CFG对照仅含两个零缓存前缀。引导放大舍入，单图概率门限不能直接推导引导后的音质。",
+    "三次合成可重复不等于与旧ONNX实现或原始Torch随机数流逐位相同。",
+    "克隆参考由同一进程的design-3生成；用户已试听五段并确认声音正常，外部说话人音色质量基准尚未建立。",
+    "显存为整卡相对加载前基线的采样增量，约零点二秒间隔，不是Windows不支持的进程显存读数。",
+    "完整合成性能仅验证本机CUDA；CPU/Vulkan完整合成、DirectML声码器及长文本性能没有据此验收。"
+  ],
+  "speed_optimization": {
+    "date": "2026-11-05",
+    "model_manifest_sha256": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+    "source_sha256": {
+      "streamvox/models/breeze/__init__.py": "de8dabde00e554d3e33b901a463879edeccd55d9b96547182e743fee6cd2f243",
+      "streamvox/models/breeze/adapter.py": "af16821bc72cab17f4f8b8985b7e1dca29cae1b4ec89f59735dde31c305c9eac",
+      "streamvox/models/breeze/codec.py": "98f1e07b298f600799d51c805850a6dce1476d668a9049a03a7f47de4bfee854",
+      "streamvox/models/breeze/cuda.py": "4df2e6c9ec14211af741883910fcb922a546c06ade968d6c2d79327c7344fc71",
+      "streamvox/models/breeze/llama.py": "ce151de3143454b18799d7332fe12a78053d13e0b64180788c28d19725bd4235",
+      "streamvox/models/breeze/ort.py": "7ecde728691cc6e91399faf737c44ded16dc7765f35c38e412776c63505117eb",
+      "streamvox/models/breeze/prompt.py": "4c3114146999e2bf89ab003b8ea3b5a94d608499201476681b38bae06103e54c",
+      "streamvox/models/breeze/runtime.py": "3a7a507decd967dc4d0b834724da605538bd25a81e2897f6b49b87216fae2709",
+      "streamvox/models/breeze/sampling.py": "83e73c8782f03f6ca7a374455754ff5b74aebd043fb39256593dc1be9e43ccef",
+      "streamvox/models/breeze/spec.py": "cd3bb167269e44344827a99da1d764e394bc731c6f5a8837f856473c49a1b7ef",
+      "streamvox/models/breeze/streaming.py": "2114b6ddbd89be9c8d8f018a0e64c54bfb46fa3a03a03bc5a9cfd54aa6c378e2",
+      "streamvox/models/breeze/templates.py": "b62f712eea4afe8ab59dfaebcd59b35c0c47b41c5baf2c0246419fe2a3513f0f",
+      "streamvox/models/llama_native.py": "3c19f0a09153132ac0a0e54e96296c787bd4858d49434b13810a624d6e09ede0"
+    },
+    "baseline": {
+      "manifest_sha256": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+      "asset_count": 308,
+      "platform": "Windows-11-10.0.26200-SP0",
+      "onnxruntime_version": "1.21.1",
+      "gpu": [
+        "NVIDIA GeForce RTX 4090",
+        "24564",
+        "610.88"
+      ],
+      "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "instruction": "一位声音清晰、语气自然的年轻女性。",
+      "parameters": {
+        "seed": 42,
+        "max_new_tokens": 300,
+        "chunk_frames": 2
+      },
+      "warmups_per_mode": 1,
+      "measurements_per_mode": 3,
+      "gpu_baseline_used_mib": 846,
+      "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "results": {
+        "design": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.732694499893114,
+            "elapsed_seconds": 4.843525399919599,
+            "audio_seconds": 6.24,
+            "rtf": 0.7762059935768588,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7806.23828125,
+              "private_commit_mib": 10673.65234375,
+              "gpu_total_used_mib": 5474,
+              "gpu_total_delta_mib": 4628
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.37129110004752874,
+              "elapsed_seconds": 4.468971200054511,
+              "audio_seconds": 6.24,
+              "rtf": 0.7161812820600179,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7811.1953125,
+                "private_commit_mib": 10632.41015625,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.3560463998001069,
+              "elapsed_seconds": 4.490441699977964,
+              "audio_seconds": 6.24,
+              "rtf": 0.7196220673041609,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7812.07421875,
+                "private_commit_mib": 10633.265625,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.37529919994995,
+              "elapsed_seconds": 4.457570899976417,
+              "audio_seconds": 6.24,
+              "rtf": 0.7143543108936566,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7812.078125,
+                "private_commit_mib": 10633.265625,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.37129110004752874,
+          "median_elapsed_seconds": 4.468971200054511,
+          "median_rtf": 0.7161812820600179,
+          "median_audio_seconds": 6.24,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        },
+        "clone": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.5310013999696821,
+            "elapsed_seconds": 4.187925199978054,
+            "audio_seconds": 6.16,
+            "rtf": 0.6798579870094242,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8331.640625,
+              "private_commit_mib": 11309.359375,
+              "gpu_total_used_mib": 5474,
+              "gpu_total_delta_mib": 4628
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.4481272001285106,
+              "elapsed_seconds": 4.115832600044087,
+              "audio_seconds": 6.16,
+              "rtf": 0.6681546428642997,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8333.16796875,
+                "private_commit_mib": 11310.50390625,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.44621610012836754,
+              "elapsed_seconds": 4.05437760008499,
+              "audio_seconds": 6.16,
+              "rtf": 0.658178181831979,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8333.6796875,
+                "private_commit_mib": 11311.07421875,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.43953370000235736,
+              "elapsed_seconds": 4.189041099976748,
+              "audio_seconds": 6.16,
+              "rtf": 0.680039139606615,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8334.3203125,
+                "private_commit_mib": 11311.64453125,
+                "gpu_total_used_mib": 5474,
+                "gpu_total_delta_mib": 4628
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.44621610012836754,
+          "median_elapsed_seconds": 4.115832600044087,
+          "median_rtf": 0.6681546428642997,
+          "median_audio_seconds": 6.16,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        }
+      },
+      "initialization_seconds": 12.577897800132632,
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "bfloat16",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      },
+      "clone_reference": {
+        "source": "design-3.wav",
+        "sample_rate": 24000,
+        "samples": 149760,
+        "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+        "codes_frames": 78
+      },
+      "resource_peak": {
+        "working_set_mib": 8334.3203125,
+        "private_commit_mib": 11311.64453125,
+        "gpu_total_used_mib": 5474,
+        "gpu_total_delta_mib": 4628
+      },
+      "phase_peaks": {
+        "clone-1": {
+          "working_set_mib": 8333.16796875,
+          "private_commit_mib": 11310.50390625,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "clone-2": {
+          "working_set_mib": 8333.6796875,
+          "private_commit_mib": 11311.07421875,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "clone-3": {
+          "working_set_mib": 8334.3203125,
+          "private_commit_mib": 11311.64453125,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "clone-warmup": {
+          "working_set_mib": 8331.640625,
+          "private_commit_mib": 11309.359375,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "design-1": {
+          "working_set_mib": 7811.1953125,
+          "private_commit_mib": 10632.41015625,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "design-2": {
+          "working_set_mib": 7812.07421875,
+          "private_commit_mib": 10633.265625,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "design-3": {
+          "working_set_mib": 7812.078125,
+          "private_commit_mib": 10633.265625,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "design-warmup": {
+          "working_set_mib": 7806.23828125,
+          "private_commit_mib": 10673.65234375,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "initialize": {
+          "working_set_mib": 6420.203125,
+          "private_commit_mib": 9205.70703125,
+          "gpu_total_used_mib": 5150,
+          "gpu_total_delta_mib": 4304
+        },
+        "make_prompt": {
+          "working_set_mib": 8168.4140625,
+          "private_commit_mib": 11035.59375,
+          "gpu_total_used_mib": 5474,
+          "gpu_total_delta_mib": 4628
+        },
+        "shutdown": {
+          "working_set_mib": 7646.72265625,
+          "private_commit_mib": 10826.9765625,
+          "gpu_total_used_mib": 1824,
+          "gpu_total_delta_mib": 978
+        }
+      }
+    },
+    "optimized": {
+      "manifest_sha256": "3db1a9ac787abd5e3d1a07aef65ef4a49d61c494bb0a279ce6d0cc850c1dc952",
+      "asset_count": 308,
+      "platform": "Windows-11-10.0.26200-SP0",
+      "onnxruntime_version": "1.21.1",
+      "gpu": [
+        "NVIDIA GeForce RTX 4090",
+        "24564",
+        "610.88"
+      ],
+      "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "instruction": "一位声音清晰、语气自然的年轻女性。",
+      "parameters": {
+        "seed": 42,
+        "max_new_tokens": 300,
+        "chunk_frames": 2
+      },
+      "warmups_per_mode": 1,
+      "measurements_per_mode": 3,
+      "gpu_baseline_used_mib": 845,
+      "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "results": {
+        "design": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.5168639998883009,
+            "elapsed_seconds": 3.339454900007695,
+            "audio_seconds": 6.24,
+            "rtf": 0.5351690544884127,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7808.68359375,
+              "private_commit_mib": 10816.3671875,
+              "gpu_total_used_mib": 5517,
+              "gpu_total_delta_mib": 4672
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.39324699994176626,
+              "elapsed_seconds": 3.292393999872729,
+              "audio_seconds": 6.24,
+              "rtf": 0.5276272435693476,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7812.578125,
+                "private_commit_mib": 10670.63671875,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.37994719995185733,
+              "elapsed_seconds": 3.242870599962771,
+              "audio_seconds": 6.24,
+              "rtf": 0.519690801276085,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7812.875,
+                "private_commit_mib": 10670.921875,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.3787248998414725,
+              "elapsed_seconds": 3.1774212999735028,
+              "audio_seconds": 6.24,
+              "rtf": 0.50920213140601,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7813.18359375,
+                "private_commit_mib": 10671.21875,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.37994719995185733,
+          "median_elapsed_seconds": 3.242870599962771,
+          "median_rtf": 0.519690801276085,
+          "median_audio_seconds": 6.24,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        },
+        "clone": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.5177255000453442,
+            "elapsed_seconds": 3.022950200131163,
+            "audio_seconds": 6.16,
+            "rtf": 0.49073866885246153,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8329.3984375,
+              "private_commit_mib": 11347.85546875,
+              "gpu_total_used_mib": 5517,
+              "gpu_total_delta_mib": 4672
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.4380340001080185,
+              "elapsed_seconds": 2.868858200032264,
+              "audio_seconds": 6.16,
+              "rtf": 0.4657237337714714,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8331.6328125,
+                "private_commit_mib": 11349.28515625,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.4324658999685198,
+              "elapsed_seconds": 2.867636299924925,
+              "audio_seconds": 6.16,
+              "rtf": 0.46552537336443583,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8332.2109375,
+                "private_commit_mib": 11349.85546875,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.4358286000788212,
+              "elapsed_seconds": 2.8836859001312405,
+              "audio_seconds": 6.16,
+              "rtf": 0.4681308279433832,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8332.39453125,
+                "private_commit_mib": 11350.140625,
+                "gpu_total_used_mib": 5517,
+                "gpu_total_delta_mib": 4672
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.4358286000788212,
+          "median_elapsed_seconds": 2.868858200032264,
+          "median_rtf": 0.4657237337714714,
+          "median_audio_seconds": 6.16,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        }
+      },
+      "initialization_seconds": 12.931570499902591,
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "bfloat16",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      },
+      "clone_reference": {
+        "source": "design-3.wav",
+        "sample_rate": 24000,
+        "samples": 149760,
+        "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+        "codes_frames": 78
+      },
+      "resource_peak": {
+        "working_set_mib": 8332.39453125,
+        "private_commit_mib": 11350.140625,
+        "gpu_total_used_mib": 5517,
+        "gpu_total_delta_mib": 4672
+      },
+      "phase_peaks": {
+        "clone-1": {
+          "working_set_mib": 8331.6328125,
+          "private_commit_mib": 11349.28515625,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "clone-2": {
+          "working_set_mib": 8332.2109375,
+          "private_commit_mib": 11349.85546875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "clone-3": {
+          "working_set_mib": 8332.39453125,
+          "private_commit_mib": 11350.140625,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "clone-warmup": {
+          "working_set_mib": 8329.3984375,
+          "private_commit_mib": 11347.85546875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "design-1": {
+          "working_set_mib": 7812.578125,
+          "private_commit_mib": 10670.63671875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "design-2": {
+          "working_set_mib": 7812.875,
+          "private_commit_mib": 10670.921875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "design-3": {
+          "working_set_mib": 7813.18359375,
+          "private_commit_mib": 10671.21875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "design-warmup": {
+          "working_set_mib": 7808.68359375,
+          "private_commit_mib": 10816.3671875,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "initialize": {
+          "working_set_mib": 7160.05859375,
+          "private_commit_mib": 10000.17578125,
+          "gpu_total_used_mib": 5295,
+          "gpu_total_delta_mib": 4450
+        },
+        "make_prompt": {
+          "working_set_mib": 8168.578125,
+          "private_commit_mib": 11075.015625,
+          "gpu_total_used_mib": 5517,
+          "gpu_total_delta_mib": 4672
+        },
+        "shutdown": {
+          "working_set_mib": 8279.63671875,
+          "private_commit_mib": 10863.1484375,
+          "gpu_total_used_mib": 4799,
+          "gpu_total_delta_mib": 3954
+        }
+      }
+    },
+    "comparisons": {
+      "design": {
+        "bitwise_codes_equal": true,
+        "bitwise_audio_equal": true,
+        "speed_ratio": 1.3780911270729757,
+        "elapsed_reduction_fraction": 0.27435858169701,
+        "first_chunk_delta_seconds": 0.008656099904328585
+      },
+      "clone": {
+        "bitwise_codes_equal": true,
+        "bitwise_audio_equal": true,
+        "speed_ratio": 1.4346587781849234,
+        "elapsed_reduction_fraction": 0.30297014509250586,
+        "first_chunk_delta_seconds": -0.010387500049546361
+      }
+    },
+    "peak_gpu_delta_increase_mib": 44,
+    "listening_replay": {
+      "samples": [
+        {
+          "name": "01-clear-female",
+          "samples": 178560,
+          "seconds": 7.44,
+          "elapsed_seconds": 3.8035454000346363,
+          "audio_sha256": "aac53b41c5ee503efa9ca4a97a99b54bc6eb6adb6b4d02cc65eaf71d1ea6a46d",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "02-low-male",
+          "samples": 178560,
+          "seconds": 7.44,
+          "elapsed_seconds": 3.7464970001019537,
+          "audio_sha256": "a14f0ddbe86346dff8b43935338fc277ada372166f46070ccff28731da5e3c52",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "03-bright-female",
+          "samples": 167040,
+          "seconds": 6.96,
+          "elapsed_seconds": 3.4912460001651198,
+          "audio_sha256": "5850af46e42911b990520e1d634fa18d284bd135d6f8cf01e829018c316506e3",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "04-gentle-story",
+          "samples": 261120,
+          "seconds": 10.88,
+          "elapsed_seconds": 5.178125100210309,
+          "audio_sha256": "eff7b748b906b6be776f5db3ae9608dbee6e465a7dca7d9fe8c8595f57c64dff",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "05-reference-clone",
+          "samples": 391680,
+          "seconds": 16.32,
+          "elapsed_seconds": 7.1676128001417965,
+          "audio_sha256": "a5979be10bb459039bd0d5c97e242ef4f8ef5acd760ae467f20cabee6369c45d",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        }
+      ],
+      "reference": "breeze-listening-20261105",
+      "status": "passed"
+    },
+    "user_listening": {
+      "samples": 5,
+      "feedback": "可以声音是正常的",
+      "clone_reference": "模型此前生成的合成女声"
+    },
+    "changes": [
+      "音频嵌入和条件投影使用单线程，常驻会话空闲线程休眠。",
+      "条件引导前若干项筛选使用分区与稳定并列补齐，浮点概率逐位复现旧筛选。",
+      "声码器固定设备缓冲，单个 CUDA Graph 在固定工作线程完成预捕获与重放。",
+      "主机传输、设备状态回写及图计算使用同一专用非阻塞流。",
+      "声码器与下一帧码本生成重叠，请求退出等待在途任务，运行时关闭释放固定线程。"
+    ],
+    "scope": [
+      "Windows 11、RTX 4090、固定中文短句的同口径性能对照。",
+      "五段用户试听输入的完整波形和分块长度逐位重放对照。",
+      "Linux CUDA、其他 GPU 与更长上下文的性能需分别测量。"
+    ]
+  },
+  "latest_runtime_record": "ttfa_optimization",
+  "record_scope": "顶层 benchmark、组件后端及初次验收记录保留原始测量范围，当前默认行为与测量见 ttfa_optimization。",
+  "ttfa_optimization": {
+    "date": "2026-11-06",
+    "status": "passed",
+    "user_preference": "优先首包，默认使用 GPU 文本主干",
+    "model_manifest_sha256": "5b436b512116733b3fea24e4aa8e311a1a949fb3b267af30bbb072e66ed65fe4",
+    "asset_count": 311,
+    "original_generation_weights_unchanged": true,
+    "additional_assets": [
+      "ckpt/text_encoder_lookup.onnx",
+      "ckpt/text_encoder_lookup.json",
+      "ckpt/text_encoder_trunk.onnx"
+    ],
+    "source_sha256": {
+      "streamvox/models/breeze/__init__.py": "de8dabde00e554d3e33b901a463879edeccd55d9b96547182e743fee6cd2f243",
+      "streamvox/models/breeze/adapter.py": "a057bf7a43b8f2f5e965d37a61880eb1f3ee25d8d9d8e720e2ebbdbaa5bfaaa7",
+      "streamvox/models/breeze/codec.py": "67d3e26b0adf5a9dca7aabffc408be1d9c4aea18743429c347d159fbcaa35d4c",
+      "streamvox/models/breeze/cuda.py": "4df2e6c9ec14211af741883910fcb922a546c06ade968d6c2d79327c7344fc71",
+      "streamvox/models/breeze/llama.py": "a40ce4d6a309fe4b981d165c43bf0542ae9fcf3a1cbaf7ee805ca7275b91e004",
+      "streamvox/models/breeze/ort.py": "c2c7951e4a7dc0b69ed47bdb436206ea57ccc5fdc923e2c04a16cc367fce5113",
+      "streamvox/models/breeze/prefill.py": "6dc36ea662fff829bd91b50065bfe527d26e89179cc57afc9f4756df45ed75a5",
+      "streamvox/models/breeze/prompt.py": "4c3114146999e2bf89ab003b8ea3b5a94d608499201476681b38bae06103e54c",
+      "streamvox/models/breeze/runtime.py": "360fdf3779d8d634252fecec44ca39b49898a64abac6755a73f0cb94da968c59",
+      "streamvox/models/breeze/sampling.py": "83e73c8782f03f6ca7a374455754ff5b74aebd043fb39256593dc1be9e43ccef",
+      "streamvox/models/breeze/spec.py": "1646255b825609ceb66daf7160620c5b0bcd2e2037d8f0f39306ae33d1b9780b",
+      "streamvox/models/breeze/streaming.py": "5581413f87ee345cb4af228e437bbbe58ac075bc677a941ebe27e16736e9a0e9",
+      "streamvox/models/breeze/templates.py": "88edcfedd00706101030a45dddf1e05eeece76f7c36f30f344a6c1006e45e1ea",
+      "streamvox/models/breeze/text.py": "a17f212150f5da214bd1d600afd7ae1156bd403c229b7f0e59dbcee5043ff557",
+      "streamvox/models/builtin_models.py": "466966f30447a84ce4460dc434e8df1d85445e3cc37dfe24222cbfe8c34f325d",
+      "streamvox/models/llama_native.py": "53748860b80ec4bfc25d40ff0269108b4e1d4bfede1588ffb4218abe9286be7d",
+      "tests/test_breeze_adapter.py": "42a314253221ad4284ac8dd9b198214a6147fd162757765ae024d175c4f72e78",
+      "tests/test_breeze_cuda.py": "17abee6bea058185e242aae64f97ea29bb6aa0d62523f9e7c260fed2bcaadaac",
+      "tests/test_breeze_export.py": "33fe280f9b55a423d8766ad19d93133fa6f641ea8a313884f8cf3ed50ad0ff94",
+      "tests/test_breeze_gguf_export.py": "55746ed7e5e1820f602e8f5865cae77cadd35017dc709409d43ecf09221fc0ec",
+      "tests/test_breeze_llama.py": "0ef3d7cdaf75aea2c983fa3a79fb25e53518798e516bd16a2b2f66a9331edbbc",
+      "tests/test_breeze_numerics.py": "7002a5c7dfc2be88f2eb21b7741952ffcd393ec511d441f72f966f0290c5da25",
+      "tests/test_breeze_prefill.py": "181653952593af9c531f6ad0f6ecdebcb5b449603be6a2614be928e2113390c9",
+      "tests/test_breeze_prepare_text_bundle.py": "39845597d9094c7f342e1364f0626bdb0489719854a3a9d3624730ccadb352cb",
+      "tests/test_breeze_runtime.py": "4eec6e1015fb83790464bf9401a1b4ff9bf4d826592029f1db661c73e4daffbe",
+      "tests/test_breeze_sampling.py": "ad79d1267558ce5fe4ef3d5d8c482649a6c04c4c37e1c18a1e91beb4c7a251d9",
+      "tests/test_breeze_streaming.py": "b7c784a72f3336000dc81e8c33c22fed6c6925a8555a8974812c195dfd926a6e",
+      "tests/test_breeze_templates.py": "205f9ae9d5af4b29eda316bc34b5b1c90d146042c14d1b51a8cd0cc71508afc0",
+      "tests/test_breeze_text.py": "98b299530d240c501fc1c9c6e9610a30c25ea259775c2152b929e21340da472a",
+      "tests/test_breeze_text_split.py": "229c35d5520a7274632a9afe0a348fe2255670613d0c9751804fe4d6007c243f",
+      "tools/breeze_reference/__init__.py": "0708b3a2eef2db7ebaab22212ae0105b622c0175b94025210db53a1e0391fa7f",
+      "tools/breeze_reference/bundle.py": "f65023a46d386d3d51510ad3839be2a87b58a181de6f4b828e447dbf80dc8282",
+      "tools/breeze_reference/codec_export.py": "1f3f4bb87b058aaf1ffd3494bc8c37f0124d4a4d582e708e35d53bbf942762e5",
+      "tools/breeze_reference/comparison.py": "4e5168ece03337ea0544452d62490867fb59f2605ac50677d2fa416d4d7bf2ad",
+      "tools/breeze_reference/conditioner_export.py": "13f628dae41bf67f02acd5248c2af3cc009a83a1e12ae67101c37a56a2d03fef",
+      "tools/breeze_reference/export.py": "bd3869725e366e4fe73f400512dd17311cb38d39bd440c0b13a3f0cf3afa6dff",
+      "tools/breeze_reference/factory.py": "9dbecdb0e46c2ad2da0e286fe0f2716835085269b131248876ca608bd2e4b207",
+      "tools/breeze_reference/gguf_comparison.py": "105d3f51c1c0cdb3115859ce90cc062805d7ecf5bc789b03b8f071548bb5c004",
+      "tools/breeze_reference/gguf_export.py": "ce6bcdf64540aba616fc5b2ed4042d0b4f087cd23d6dcdceddbb4a9eaaf9c672",
+      "tools/breeze_reference/gguf_validate.py": "e2ba5d28c8810b7f88f130deec07c4ae73ec21a94656bbf8c9dc6deb4079d57d",
+      "tools/breeze_reference/graphs.py": "2a179a0a736bdf262f73e7dfec37f71cee989d3c853119ab42802bfea90d1400",
+      "tools/breeze_reference/normalization.py": "197d98e9cb523363604381fff38dbd8954a6c3accca58342397d133e4f863783",
+      "tools/breeze_reference/numerics.py": "9a3b080d60ead89f5d9ac45b259415b290802e72796f352205620b54c5d07daf",
+      "tools/breeze_reference/prepare_text_bundle.py": "4a5d8fa83ab8324a94814eddfb0eb95928604d325a737a691b4dfb0cd79ee43a",
+      "tools/breeze_reference/text_encoder_split.py": "a884f24fa2063260417f2f7bfde41e6f67147a7d31f38fe6beaa2cf9223c60d8",
+      "tools/breeze_reference/verify_codec.py": "d1dc71eb823f8a8fb171a6ed8230286c9bb33385d18dffa27e0b91191d0b96ab",
+      "tools/breeze_reference/weights.py": "02953ee65bfc0a3d54177acea623dcd0a2fc7eb4a90a3e56cf1a0e5e121fe11a"
+    },
+    "default_selection": {
+      "adapter_option": "text_encoder_backend=auto",
+      "cuda_condition": "声码器使用 CUDA，且清单包含全部三项快速文本资产。",
+      "lookup": "CPU ONNX Gather，原始 FP32 嵌入表零复制只读内存映射。",
+      "trunk": "CUDA ONNX FP32，保留缩放、结束符替换、全部二十六层与原始非对称局部注意力窗口。",
+      "missing_fast_assets_auto": "使用完整 CPU ONNX 文本图。",
+      "missing_fast_assets_explicit_cuda": "报错。",
+      "explicit_cpu": "通过模型注册表中适配器的 text_encoder_backend=cpu 选择。"
+    },
+    "timing_scope": {
+      "ttfa": "从开始消费 stream 生成器，到调用方收到第一个音频数组，包含目标文本编码、请求预填充、码本生成及声码器。",
+      "initialization": "完整清单校验、会话加载、声码器图捕获及正式 Engine 初始化预热单独计时。",
+      "reference_preparation": "make_prompt 的参考音频编码、参考转录编码与单分支参考前缀预填充单独计时。",
+      "first_actual_request": "正式 Engine 初始化后首次完整设计请求，以及角色准备后首次完整克隆请求，记录在每模式 warmup 行。",
+      "warm_median": "每模式先完成一次完整请求，再取三次正式测量中位数。",
+      "default_packet_seconds": 0.16,
+      "frame_seconds": 0.08,
+      "first_packet_generated_frames": 2,
+      "last_packet_can_be_seconds": 0.08
+    },
+    "default_gpu_text": {
+      "status": "passed",
+      "bundle": "ckpts/breeze-tts-2-gguf",
+      "manifest_sha256": "5b436b512116733b3fea24e4aa8e311a1a949fb3b267af30bbb072e66ed65fe4",
+      "asset_count": 311,
+      "platform": "Windows-11-10.0.26200-SP0",
+      "onnxruntime_version": "1.21.1",
+      "gpu": [
+        "NVIDIA GeForce RTX 4090",
+        "24564",
+        "610.88"
+      ],
+      "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "instruction": "一位声音清晰、语气自然的年轻女性。",
+      "parameters": {
+        "seed": 42,
+        "max_new_tokens": 300,
+        "chunk_frames": 2
+      },
+      "warmups_per_mode": 1,
+      "measurements_per_mode": 3,
+      "gpu_baseline_used_mib": 836,
+      "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "real_cfg_reference_capture_scope": "仅设计预热首个正负文本预填充的CPU嵌入和原生接口已返回分数；三轮正式计时关闭捕获，不额外读回设备状态。",
+      "results": {
+        "design": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.21080480003729463,
+            "elapsed_seconds": 2.539484500186518,
+            "audio_seconds": 5.12,
+            "rtf": 0.49599306644267926,
+            "frames": 64,
+            "samples": 122880,
+            "chunk_count": 32,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.5434401035308838,
+            "rms": 0.09335317462682724,
+            "calls": {
+              "backbone": 66,
+              "depth": 1024,
+              "decoder": 64
+            },
+            "audio_sha256": "a1fe6f7305fbcc718fb61bd7f1a4b511aa34aebb9468e840a38a99385df15175",
+            "codes_sha256": "c44a497f149139ba9703727425327da50a174438e84b0be444d40b5ebfebc6f9",
+            "sampled_resource_peak": {
+              "working_set_mib": 7586.11328125,
+              "private_commit_mib": 13503.82421875,
+              "gpu_total_used_mib": 8670,
+              "gpu_total_delta_mib": 7834
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.20527859986759722,
+              "elapsed_seconds": 2.5052881999872625,
+              "audio_seconds": 5.12,
+              "rtf": 0.4893141015600122,
+              "frames": 64,
+              "samples": 122880,
+              "chunk_count": 32,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.5434401035308838,
+              "rms": 0.09335317462682724,
+              "calls": {
+                "backbone": 66,
+                "depth": 1024,
+                "decoder": 64
+              },
+              "audio_sha256": "a1fe6f7305fbcc718fb61bd7f1a4b511aa34aebb9468e840a38a99385df15175",
+              "codes_sha256": "c44a497f149139ba9703727425327da50a174438e84b0be444d40b5ebfebc6f9",
+              "sampled_resource_peak": {
+                "working_set_mib": 7587.80859375,
+                "private_commit_mib": 13414.38671875,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.20649749995209277,
+              "elapsed_seconds": 2.4877442000433803,
+              "audio_seconds": 5.12,
+              "rtf": 0.4858875390709727,
+              "frames": 64,
+              "samples": 122880,
+              "chunk_count": 32,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.5434401035308838,
+              "rms": 0.09335317462682724,
+              "calls": {
+                "backbone": 66,
+                "depth": 1024,
+                "decoder": 64
+              },
+              "audio_sha256": "a1fe6f7305fbcc718fb61bd7f1a4b511aa34aebb9468e840a38a99385df15175",
+              "codes_sha256": "c44a497f149139ba9703727425327da50a174438e84b0be444d40b5ebfebc6f9",
+              "sampled_resource_peak": {
+                "working_set_mib": 7588.1171875,
+                "private_commit_mib": 13368.33203125,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.21182060008868575,
+              "elapsed_seconds": 2.588476999895647,
+              "audio_seconds": 5.12,
+              "rtf": 0.5055619140421186,
+              "frames": 64,
+              "samples": 122880,
+              "chunk_count": 32,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.5434401035308838,
+              "rms": 0.09335317462682724,
+              "calls": {
+                "backbone": 66,
+                "depth": 1024,
+                "decoder": 64
+              },
+              "audio_sha256": "a1fe6f7305fbcc718fb61bd7f1a4b511aa34aebb9468e840a38a99385df15175",
+              "codes_sha256": "c44a497f149139ba9703727425327da50a174438e84b0be444d40b5ebfebc6f9",
+              "sampled_resource_peak": {
+                "working_set_mib": 7588.13671875,
+                "private_commit_mib": 13368.33203125,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.20649749995209277,
+          "median_elapsed_seconds": 2.5052881999872625,
+          "median_rtf": 0.4893141015600122,
+          "median_audio_seconds": 5.12,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        },
+        "clone": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.13887160015292466,
+            "elapsed_seconds": 2.4714919000398368,
+            "audio_seconds": 5.52,
+            "rtf": 0.4477340398622893,
+            "frames": 69,
+            "samples": 132480,
+            "chunk_count": 35,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.4007761776447296,
+            "rms": 0.07617927342653275,
+            "calls": {
+              "backbone": 70,
+              "depth": 1104,
+              "decoder": 69
+            },
+            "audio_sha256": "66eaa2c2e1e8d1bbec4abea68de220e25826ad68012a1da75d7622fa7a3867c2",
+            "codes_sha256": "3b8deb7f3f404bc047ea5627dc9accda83cf68364ab913ffdc18be93bcc1adce",
+            "sampled_resource_peak": {
+              "working_set_mib": 8083.7265625,
+              "private_commit_mib": 14042.265625,
+              "gpu_total_used_mib": 8670,
+              "gpu_total_delta_mib": 7834
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.12999440007843077,
+              "elapsed_seconds": 2.4024824001826346,
+              "audio_seconds": 5.52,
+              "rtf": 0.4352323188736657,
+              "frames": 69,
+              "samples": 132480,
+              "chunk_count": 35,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.4007761776447296,
+              "rms": 0.07617927342653275,
+              "calls": {
+                "backbone": 70,
+                "depth": 1104,
+                "decoder": 69
+              },
+              "audio_sha256": "66eaa2c2e1e8d1bbec4abea68de220e25826ad68012a1da75d7622fa7a3867c2",
+              "codes_sha256": "3b8deb7f3f404bc047ea5627dc9accda83cf68364ab913ffdc18be93bcc1adce",
+              "sampled_resource_peak": {
+                "working_set_mib": 8086.19140625,
+                "private_commit_mib": 14043.98046875,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.12979919998906553,
+              "elapsed_seconds": 2.4062163000926375,
+              "audio_seconds": 5.52,
+              "rtf": 0.4359087500167822,
+              "frames": 69,
+              "samples": 132480,
+              "chunk_count": 35,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.4007761776447296,
+              "rms": 0.07617927342653275,
+              "calls": {
+                "backbone": 70,
+                "depth": 1104,
+                "decoder": 69
+              },
+              "audio_sha256": "66eaa2c2e1e8d1bbec4abea68de220e25826ad68012a1da75d7622fa7a3867c2",
+              "codes_sha256": "3b8deb7f3f404bc047ea5627dc9accda83cf68364ab913ffdc18be93bcc1adce",
+              "sampled_resource_peak": {
+                "working_set_mib": 8087.640625,
+                "private_commit_mib": 14045.41015625,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.1320787000004202,
+              "elapsed_seconds": 2.4975014000665396,
+              "audio_seconds": 5.52,
+              "rtf": 0.4524459058091558,
+              "frames": 69,
+              "samples": 132480,
+              "chunk_count": 35,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.4007761776447296,
+              "rms": 0.07617927342653275,
+              "calls": {
+                "backbone": 70,
+                "depth": 1104,
+                "decoder": 69
+              },
+              "audio_sha256": "66eaa2c2e1e8d1bbec4abea68de220e25826ad68012a1da75d7622fa7a3867c2",
+              "codes_sha256": "3b8deb7f3f404bc047ea5627dc9accda83cf68364ab913ffdc18be93bcc1adce",
+              "sampled_resource_peak": {
+                "working_set_mib": 8087.9375,
+                "private_commit_mib": 14045.6953125,
+                "gpu_total_used_mib": 8670,
+                "gpu_total_delta_mib": 7834
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.12999440007843077,
+          "median_elapsed_seconds": 2.4062163000926375,
+          "median_rtf": 0.4359087500167822,
+          "median_audio_seconds": 5.52,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        }
+      },
+      "initialization_seconds": 13.754558900138363,
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._lookup.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._graph.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cuda",
+        "text_lookup_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "bfloat16",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      },
+      "make_prompt_seconds": 0.7502981999423355,
+      "clone_reference": {
+        "source": "design-3.wav",
+        "sample_rate": 24000,
+        "samples": 122880,
+        "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+        "codes_frames": 64
+      },
+      "actual_backends_after_reference": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._lookup.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._graph.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "manifest_sha256_after_measurement": "5b436b512116733b3fea24e4aa8e311a1a949fb3b267af30bbb072e66ed65fe4",
+      "gpu_used_mib_after_shutdown": 1320,
+      "resource_peak": {
+        "working_set_mib": 8087.9375,
+        "private_commit_mib": 14045.6953125,
+        "gpu_total_used_mib": 8670,
+        "gpu_total_delta_mib": 7834
+      },
+      "phase_peaks": {
+        "clone-1": {
+          "working_set_mib": 8086.19140625,
+          "private_commit_mib": 14043.98046875,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "clone-2": {
+          "working_set_mib": 8087.640625,
+          "private_commit_mib": 14045.41015625,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "clone-3": {
+          "working_set_mib": 8087.9375,
+          "private_commit_mib": 14045.6953125,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "clone-warmup": {
+          "working_set_mib": 8083.7265625,
+          "private_commit_mib": 14042.265625,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "design-1": {
+          "working_set_mib": 7587.80859375,
+          "private_commit_mib": 13414.38671875,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "design-2": {
+          "working_set_mib": 7588.1171875,
+          "private_commit_mib": 13368.33203125,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "design-3": {
+          "working_set_mib": 7588.13671875,
+          "private_commit_mib": 13368.33203125,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "design-warmup": {
+          "working_set_mib": 7586.11328125,
+          "private_commit_mib": 13503.82421875,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "initialize": {
+          "working_set_mib": 7577.26171875,
+          "private_commit_mib": 13502.125,
+          "gpu_total_used_mib": 8630,
+          "gpu_total_delta_mib": 7794
+        },
+        "make_prompt": {
+          "working_set_mib": 8063.8515625,
+          "private_commit_mib": 14036.80859375,
+          "gpu_total_used_mib": 8670,
+          "gpu_total_delta_mib": 7834
+        },
+        "shutdown": {
+          "working_set_mib": 6596.69140625,
+          "private_commit_mib": 8409.14453125,
+          "gpu_total_used_mib": 5204,
+          "gpu_total_delta_mib": 4368
+        }
+      },
+      "first_actual_request_seconds": {
+        "design": 0.21080480003729463,
+        "clone": 0.13887160015292466
+      }
+    },
+    "explicit_cpu_text": {
+      "status": "passed",
+      "bundle": "ckpts/breeze-tts-2-gguf",
+      "manifest_sha256": "5b436b512116733b3fea24e4aa8e311a1a949fb3b267af30bbb072e66ed65fe4",
+      "asset_count": 311,
+      "platform": "Windows-11-10.0.26200-SP0",
+      "onnxruntime_version": "1.21.1",
+      "gpu": [
+        "NVIDIA GeForce RTX 4090",
+        "24564",
+        "610.88"
+      ],
+      "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "instruction": "一位声音清晰、语气自然的年轻女性。",
+      "parameters": {
+        "seed": 42,
+        "max_new_tokens": 300,
+        "chunk_frames": 2
+      },
+      "warmups_per_mode": 1,
+      "measurements_per_mode": 3,
+      "gpu_baseline_used_mib": 834,
+      "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "real_cfg_reference_capture_scope": "仅设计预热首个正负文本预填充的CPU嵌入和原生接口已返回分数；三轮正式计时关闭捕获，不额外读回设备状态。",
+      "results": {
+        "design": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "一位声音清晰、语气自然的年轻女性。",
+            "cfg_scale": 4.0,
+            "first_chunk_seconds": 0.31011129985563457,
+            "elapsed_seconds": 3.015086099971086,
+            "audio_seconds": 6.24,
+            "rtf": 0.4831868749953663,
+            "frames": 78,
+            "samples": 149760,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.26441308856010437,
+            "rms": 0.04877975583076477,
+            "calls": {
+              "backbone": 80,
+              "depth": 1248,
+              "decoder": 78
+            },
+            "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+            "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+            "sampled_resource_peak": {
+              "working_set_mib": 7854.23046875,
+              "private_commit_mib": 11111.015625,
+              "gpu_total_used_mib": 5730,
+              "gpu_total_delta_mib": 4896
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.3131339999381453,
+              "elapsed_seconds": 3.017550899880007,
+              "audio_seconds": 6.24,
+              "rtf": 0.4835818749807703,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7856.33203125,
+                "private_commit_mib": 10989.96875,
+                "gpu_total_used_mib": 5730,
+                "gpu_total_delta_mib": 4896
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.3085922000464052,
+              "elapsed_seconds": 2.9974913001060486,
+              "audio_seconds": 6.24,
+              "rtf": 0.48036719552981544,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7856.38671875,
+                "private_commit_mib": 10961.30859375,
+                "gpu_total_used_mib": 5730,
+                "gpu_total_delta_mib": 4896
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "一位声音清晰、语气自然的年轻女性。",
+              "cfg_scale": 4.0,
+              "first_chunk_seconds": 0.31162540009245276,
+              "elapsed_seconds": 3.009927300037816,
+              "audio_seconds": 6.24,
+              "rtf": 0.4823601442368295,
+              "frames": 78,
+              "samples": 149760,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.26441308856010437,
+              "rms": 0.04877975583076477,
+              "calls": {
+                "backbone": 80,
+                "depth": 1248,
+                "decoder": 78
+              },
+              "audio_sha256": "d6f0d1b29e3e032c84b7b2bb7248f2ace0fdcdaf1a0c1181bf061fc7815eaa17",
+              "codes_sha256": "523f5e46481a23f79638a127050027229324a518054792ebb77f7f6dd1f33a93",
+              "sampled_resource_peak": {
+                "working_set_mib": 7856.38671875,
+                "private_commit_mib": 10961.30859375,
+                "gpu_total_used_mib": 5730,
+                "gpu_total_delta_mib": 4896
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.31162540009245276,
+          "median_elapsed_seconds": 3.009927300037816,
+          "median_rtf": 0.4823601442368295,
+          "median_audio_seconds": 6.24,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        },
+        "clone": {
+          "warmup": {
+            "status": "passed",
+            "failures": [],
+            "instruction": "",
+            "cfg_scale": 1.0,
+            "first_chunk_seconds": 0.1969210000243038,
+            "elapsed_seconds": 2.691597199998796,
+            "audio_seconds": 6.16,
+            "rtf": 0.4369475974024019,
+            "frames": 77,
+            "samples": 147840,
+            "chunk_count": 39,
+            "eos_before_limit": true,
+            "termination": "eos",
+            "finite_audio": true,
+            "peak_abs": 0.25560280680656433,
+            "rms": 0.050815314054489136,
+            "calls": {
+              "backbone": 78,
+              "depth": 1232,
+              "decoder": 77
+            },
+            "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+            "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+            "sampled_resource_peak": {
+              "working_set_mib": 8372.64453125,
+              "private_commit_mib": 11635.1640625,
+              "gpu_total_used_mib": 5730,
+              "gpu_total_delta_mib": 4896
+            }
+          },
+          "trials": [
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.19558749999850988,
+              "elapsed_seconds": 2.6520344000309706,
+              "audio_seconds": 6.16,
+              "rtf": 0.4305250649400926,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8375.0390625,
+                "private_commit_mib": 11636.87890625,
+                "gpu_total_used_mib": 5732,
+                "gpu_total_delta_mib": 4898
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.18871429981663823,
+              "elapsed_seconds": 2.6385571998544037,
+              "audio_seconds": 6.16,
+              "rtf": 0.42833720776857204,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8375.9140625,
+                "private_commit_mib": 11638.01953125,
+                "gpu_total_used_mib": 5732,
+                "gpu_total_delta_mib": 4898
+              }
+            },
+            {
+              "status": "passed",
+              "failures": [],
+              "instruction": "",
+              "cfg_scale": 1.0,
+              "first_chunk_seconds": 0.18822799995541573,
+              "elapsed_seconds": 2.6212228999938816,
+              "audio_seconds": 6.16,
+              "rtf": 0.4255231980509548,
+              "frames": 77,
+              "samples": 147840,
+              "chunk_count": 39,
+              "eos_before_limit": true,
+              "termination": "eos",
+              "finite_audio": true,
+              "peak_abs": 0.25560280680656433,
+              "rms": 0.050815314054489136,
+              "calls": {
+                "backbone": 78,
+                "depth": 1232,
+                "decoder": 77
+              },
+              "audio_sha256": "30033741494f51ebfed58f020784bf0c044a14ff5f4bd2383ead969885e28b12",
+              "codes_sha256": "72cbe464cad40e24473b9ec4c34ab5dd31b67aa3bbd22ccdd6937c584a02ca16",
+              "sampled_resource_peak": {
+                "working_set_mib": 8376.1875,
+                "private_commit_mib": 11638.01953125,
+                "gpu_total_used_mib": 5732,
+                "gpu_total_delta_mib": 4898
+              }
+            }
+          ],
+          "median_first_chunk_seconds": 0.18871429981663823,
+          "median_elapsed_seconds": 2.6385571998544037,
+          "median_rtf": 0.42833720776857204,
+          "median_audio_seconds": 6.16,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        }
+      },
+      "initialization_seconds": 13.943979300092906,
+      "actual_backends": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cpu",
+        "text_lookup_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "bfloat16",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      },
+      "make_prompt_seconds": 0.839117499999702,
+      "clone_reference": {
+        "source": "design-3.wav",
+        "sample_rate": 24000,
+        "samples": 149760,
+        "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+        "codes_frames": 78
+      },
+      "actual_backends_after_reference": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      },
+      "manifest_sha256_after_measurement": "5b436b512116733b3fea24e4aa8e311a1a949fb3b267af30bbb072e66ed65fe4",
+      "gpu_used_mib_after_shutdown": 1316,
+      "resource_peak": {
+        "working_set_mib": 8376.1875,
+        "private_commit_mib": 11638.01953125,
+        "gpu_total_used_mib": 5732,
+        "gpu_total_delta_mib": 4898
+      },
+      "phase_peaks": {
+        "clone-1": {
+          "working_set_mib": 8375.0390625,
+          "private_commit_mib": 11636.87890625,
+          "gpu_total_used_mib": 5732,
+          "gpu_total_delta_mib": 4898
+        },
+        "clone-2": {
+          "working_set_mib": 8375.9140625,
+          "private_commit_mib": 11638.01953125,
+          "gpu_total_used_mib": 5732,
+          "gpu_total_delta_mib": 4898
+        },
+        "clone-3": {
+          "working_set_mib": 8376.1875,
+          "private_commit_mib": 11638.01953125,
+          "gpu_total_used_mib": 5732,
+          "gpu_total_delta_mib": 4898
+        },
+        "clone-warmup": {
+          "working_set_mib": 8372.64453125,
+          "private_commit_mib": 11635.1640625,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "design-1": {
+          "working_set_mib": 7856.33203125,
+          "private_commit_mib": 10989.96875,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "design-2": {
+          "working_set_mib": 7856.38671875,
+          "private_commit_mib": 10961.30859375,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "design-3": {
+          "working_set_mib": 7856.38671875,
+          "private_commit_mib": 10961.30859375,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "design-warmup": {
+          "working_set_mib": 7854.23046875,
+          "private_commit_mib": 11111.015625,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "initialize": {
+          "working_set_mib": 7840.1328125,
+          "private_commit_mib": 11101.22265625,
+          "gpu_total_used_mib": 5698,
+          "gpu_total_delta_mib": 4864
+        },
+        "make_prompt": {
+          "working_set_mib": 8361.953125,
+          "private_commit_mib": 11630.5703125,
+          "gpu_total_used_mib": 5730,
+          "gpu_total_delta_mib": 4896
+        },
+        "shutdown": {
+          "working_set_mib": 5068.24609375,
+          "private_commit_mib": 7694.2890625,
+          "gpu_total_used_mib": 4478,
+          "gpu_total_delta_mib": 3644
+        }
+      },
+      "first_actual_request_seconds": {
+        "design": 0.31011129985563457,
+        "clone": 0.1969210000243038
+      }
+    },
+    "comparisons": {
+      "previous_cpu_text_median_ttfa_seconds": {
+        "design": 0.37994719995185733,
+        "clone": 0.4358286000788212
+      },
+      "cpu_text_full_audio_parity_with_previous": {
+        "design": {
+          "bitwise_codes_equal": true,
+          "bitwise_audio_equal": true
+        },
+        "clone": {
+          "bitwise_codes_equal": true,
+          "bitwise_audio_equal": true
+        }
+      },
+      "gpu_text_cross_cpu_audio_bitwise_equality_required": false,
+      "gpu_text_rounding_scope": "通过既有 FP32 数值门限，浮点差异可能改变随机采样码流及最终波形。每种当前后端内部的三次测量均可重复。",
+      "reference_input_scope": "每种模式使用自身第三次设计输出作为克隆参考，GPU 文本与 CPU 文本的参考音频分别为 5.12 秒和 6.24 秒。跨文本后端的克隆耗时比较包含参考长度差异。"
+    },
+    "memory_comparison": {
+      "scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "sampling_interval_seconds_approximate": 0.2,
+      "default_gpu_text_peak_delta_mib": 7834,
+      "current_cpu_text_peak_delta_mib": 4898,
+      "previous_cpu_text_peak_delta_mib": 4672,
+      "increase_vs_current_cpu_text_mib": 2936,
+      "increase_vs_previous_cpu_text_mib": 3162,
+      "text_trunk_weights_mib": 2671.2666015625,
+      "cpu_lookup_weights_mib": 1152.0615234375,
+      "scope_notes": "实际峰值还包含 ONNX 工作区、内存池与初始化预分配原生缓存，权重大小不能代替整链路显存测量。"
+    },
+    "text_fp32_validation": {
+      "reference": "原始完整 CPU ONNX 文本图，对每个未填充样本独立执行。",
+      "actual": "生产 HybridTextEncoder，CPU ONNX 查表与 CUDA ONNX 文本主干。",
+      "policy_source": "tools/breeze_reference/numerics.py::FP32_POLICY",
+      "pointwise_atol": 0.0002,
+      "pointwise_rtol": 0.0004,
+      "relative_l2_max": 0.0001,
+      "validated_rows": 6,
+      "results": {
+        "real_cfg": [
+          {
+            "max_abs": 1.71661376953125e-05,
+            "rms": 3.8596223484662335e-07,
+            "relative_l2": 1.1494359343504869e-06
+          },
+          {
+            "max_abs": 1.33514404296875e-05,
+            "rms": 3.896381065045644e-07,
+            "relative_l2": 1.0736242801716122e-06
+          }
+        ],
+        "different_text": [
+          {
+            "max_abs": 1.1444091796875e-05,
+            "rms": 3.4656152565683755e-07,
+            "relative_l2": 9.819363999799261e-07
+          }
+        ],
+        "eoi_and_padding": [
+          {
+            "max_abs": 9.655952453613281e-06,
+            "rms": 4.199075898952192e-07,
+            "relative_l2": 1.1658797029643432e-06
+          },
+          {
+            "max_abs": 2.86102294921875e-05,
+            "rms": 6.388514813625889e-07,
+            "relative_l2": 1.1175644197873763e-06
+          }
+        ],
+        "window_513": [
+          {
+            "max_abs": 2.384185791015625e-05,
+            "rms": 4.427330201661487e-07,
+            "relative_l2": 1.244320478594306e-06
+          }
+        ],
+        "status": "passed"
+      }
+    },
+    "reference_cache_validation": {
+      "backend": "cuda",
+      "weight_precision": "bfloat16",
+      "kv_precision": "float32",
+      "cache_scope": "single_branch_only",
+      "cache_enabled_condition": "仅有一个条件分支，且偶数对齐后存在非空参考前缀；多分支始终完整预填充并清空缓存",
+      "reference": "同一 LlamaDecoder 在 reset 后完整预填充与三步共同增量的输出",
+      "numeric_policy": {
+        "pointwise_atol": 0.01,
+        "pointwise_rtol": 0.02,
+        "pointwise_hard_gate": false,
+        "relative_l2_max": 0.025,
+        "reference_norm_floor": 1e-06,
+        "logits_temperature": 0.9,
+        "kl_reference_to_actual_max": 0.003,
+        "max_probability_difference": 0.035
+      },
+      "passed": true,
+      "maximum_hidden_absolute_error": 0.0,
+      "maximum_logits_absolute_error": 0.0,
+      "cases": [
+        {
+          "name": "reference_511/single_initial",
+          "reference_length": 511,
+          "retained_reference_length": 510,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            32
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_511/cfg_new_targets",
+          "reference_length": 511,
+          "retained_reference_length": 0,
+          "cache_enabled": false,
+          "cache_reused": false,
+          "branch_count": 2,
+          "target_lengths": [
+            32,
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_511/single_after_cfg",
+          "reference_length": 511,
+          "retained_reference_length": 510,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_511/changed_odd_reference_tail",
+          "reference_length": 511,
+          "retained_reference_length": 510,
+          "cache_enabled": true,
+          "cache_reused": true,
+          "branch_count": 1,
+          "target_lengths": [
+            32
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_512/single_initial",
+          "reference_length": 512,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            32
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_512/cfg_new_targets",
+          "reference_length": 512,
+          "retained_reference_length": 0,
+          "cache_enabled": false,
+          "cache_reused": false,
+          "branch_count": 2,
+          "target_lengths": [
+            32,
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_512/single_after_cfg",
+          "reference_length": 512,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_513/single_initial",
+          "reference_length": 513,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            32
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_513/cfg_new_targets",
+          "reference_length": 513,
+          "retained_reference_length": 0,
+          "cache_enabled": false,
+          "cache_reused": false,
+          "branch_count": 2,
+          "target_lengths": [
+            32,
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_513/single_after_cfg",
+          "reference_length": 513,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            21
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_513/changed_odd_reference_tail",
+          "reference_length": 513,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": true,
+          "branch_count": 1,
+          "target_lengths": [
+            32
+          ],
+          "reserve_to": null,
+          "passed": true
+        },
+        {
+          "name": "reference_513/reserve_growth",
+          "reference_length": 513,
+          "retained_reference_length": 512,
+          "cache_enabled": true,
+          "cache_reused": false,
+          "branch_count": 1,
+          "target_lengths": [
+            21
+          ],
+          "reserve_to": 1280,
+          "passed": true
+        }
+      ],
+      "rejected_shared_cfg_candidate": {
+        "included_in_production": false,
+        "passed": false,
+        "reason": "长参考下改变物理归约布局，未通过原有 BF16 数值门限，已删除共享分支实现。",
+        "maximum_hidden_absolute_error": 0.6354274749755859,
+        "maximum_logits_absolute_error": 0.28125,
+        "failed_cases": [
+          "reference_511/cfg_new_targets",
+          "reference_511/changed_odd_reference_tail",
+          "reference_513/cfg_new_targets"
+        ]
+      }
+    },
+    "reference_preparation_validation": {
+      "reference": "同一解码器先 reset 完整重算，再 warm 无输出参考并计算目标与三步增量",
+      "passed": true,
+      "maximum_hidden_absolute_error": 0.0,
+      "maximum_logits_absolute_error": 0.0,
+      "cases": [
+        {
+          "reference_length": 511,
+          "prepared_length": 510,
+          "target_length": 32,
+          "odd_reference_tail_changed_after_preparation": true,
+          "preparation_output": false,
+          "preparation_seconds": 1.110163199948147,
+          "stages": {
+            "prefill": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.986351490020752,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_1": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 1.0211181640625,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_2": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.29211902618408203,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_3": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.11964035034179688,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            }
+          },
+          "target_plus_three_steps_seconds": 0.1000355000142008,
+          "passed": true
+        },
+        {
+          "reference_length": 512,
+          "prepared_length": 512,
+          "target_length": 21,
+          "odd_reference_tail_changed_after_preparation": false,
+          "preparation_output": false,
+          "preparation_seconds": 1.1255399999208748,
+          "stages": {
+            "prefill": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.33451175689697266,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_1": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.5885171890258789,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_2": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.2240734100341797,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_3": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.6399946212768555,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            }
+          },
+          "target_plus_three_steps_seconds": 0.07288049999624491,
+          "passed": true
+        },
+        {
+          "reference_length": 513,
+          "prepared_length": 512,
+          "target_length": 32,
+          "odd_reference_tail_changed_after_preparation": true,
+          "preparation_output": false,
+          "preparation_seconds": 1.1291650999337435,
+          "stages": {
+            "prefill": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.4455389976501465,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_1": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.008258819580078125,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_2": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.3221321105957031,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            },
+            "increment_3": {
+              "hidden": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2048,
+                "bitwise_equal": true
+              },
+              "logits": {
+                "passed": true,
+                "max_abs": 0.0,
+                "rms": 0.0,
+                "relative_l2": 0.0,
+                "pointwise_violations": 0,
+                "element_count": 2052,
+                "kl_reference_to_actual": 0.0,
+                "max_probability_difference": 0.0,
+                "top1_agreement": 1.0,
+                "min_top1_margin": 0.19510841369628906,
+                "valid_vocab_size": 2049,
+                "bitwise_equal": true
+              }
+            }
+          },
+          "target_plus_three_steps_seconds": 0.09758080006577075,
+          "passed": true
+        }
+      ]
+    },
+    "listening_replay_cpu_text": {
+      "samples": [
+        {
+          "name": "01-clear-female",
+          "samples": 178560,
+          "seconds": 7.44,
+          "elapsed_seconds": 3.958598499884829,
+          "audio_sha256": "aac53b41c5ee503efa9ca4a97a99b54bc6eb6adb6b4d02cc65eaf71d1ea6a46d",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "02-low-male",
+          "samples": 178560,
+          "seconds": 7.44,
+          "elapsed_seconds": 3.9135829000733793,
+          "audio_sha256": "a14f0ddbe86346dff8b43935338fc277ada372166f46070ccff28731da5e3c52",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "03-bright-female",
+          "samples": 167040,
+          "seconds": 6.96,
+          "elapsed_seconds": 3.61613929993473,
+          "audio_sha256": "5850af46e42911b990520e1d634fa18d284bd135d6f8cf01e829018c316506e3",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "04-gentle-story",
+          "samples": 261120,
+          "seconds": 10.88,
+          "elapsed_seconds": 5.608923600055277,
+          "audio_sha256": "eff7b748b906b6be776f5db3ae9608dbee6e465a7dca7d9fe8c8595f57c64dff",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        },
+        {
+          "name": "05-reference-clone",
+          "samples": 391680,
+          "seconds": 16.32,
+          "elapsed_seconds": 7.0359406999778,
+          "audio_sha256": "a5979be10bb459039bd0d5c97e242ef4f8ef5acd760ae467f20cabee6369c45d",
+          "bitwise_equal": true,
+          "finite_audio": true,
+          "chunk_samples_equal": true
+        }
+      ],
+      "reference": "breeze-listening-20261105",
+      "status": "passed"
+    },
+    "changes": [
+      "将条件引导的目标文本填充为独立批次行，参考内容每次请求只编码与查表一次。",
+      "首包收齐两帧后主动取回在途声码器结果，后续包继续跨帧流水线。",
+      "单分支参考缓存按实际 FP32 内容摘要，CUDA 前缀对齐两词，奇数末词随目标重新计算。",
+      "正常请求保留参考前缀，异常与取消清空，扩容后失效，多分支完整独立预填充。",
+      "在正式 Engine 初始化 Hook 预热常见条件分支，角色准备时提前执行参考前缀预填充。",
+      "先释放 ONNX 接口元数据与会话，再释放只读权重映射和外部 CUDA 流。",
+      "离线派生工具在跨卷或硬链接不支持时复制资产，构建失败后仅清理本次拥有的半成品目录并保留原异常。"
+    ],
+    "validation_commands": {
+      "sdk": "uv run --no-sync python -m pytest tests -q",
+      "isolated": "python -m pytest tests/test_breeze_export.py tests/test_breeze_gguf_export.py tests/test_breeze_numerics.py tests/test_breeze_runtime.py tests/test_breeze_sampling.py tests/test_breeze_streaming.py tests/test_breeze_cuda.py tests/test_breeze_llama.py tests/test_breeze_prefill.py tests/test_breeze_templates.py tests/test_breeze_text.py tests/test_breeze_text_split.py tests/test_breeze_prepare_text_bundle.py -q"
+    },
+    "limits": [
+      "性能实测覆盖 Windows 11、RTX 4090、固定中文短句及合成参考，Linux CUDA 等其他环境需分别测量。",
+      "缓存数值验证覆盖参考长度 511、512、513、分支切换、奇数末词变化和容量扩展。",
+      "持久角色从磁盘读取时没有提前准备原生参考缓存，可显式调用 prepare_reference。",
+      "GPU 文本路径尚未取得本轮新增的人工试听反馈，已有五段试听反馈及逐位重放对应 CPU 文本路径。"
+    ],
+    "source_hash_line_endings": "源码摘要采用仓库 .gitattributes 规定的 LF 换行。"
+  }
+}

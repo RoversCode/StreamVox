@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [模型许可](model-licenses.md) · [构建与开发](development.md)
 
-本文描述 2.0.0 的公开 API。发行支持 Windows x64 / CPython 3.12，安装方式见 README。示例中的参考音频由你自行准备，参考文本应与音频内容一致。
+本文描述 2.1.0 的公开 API。发行支持 Windows x64 / CPython 3.12，安装方式见 README。示例中的参考音频由你自行准备，参考文本应与音频内容一致。
 
 ## 初始化
 
@@ -41,6 +41,7 @@ engine = TTSEngine(
 - [S2-Pro](models/s2-pro.md)
 - [VoxCPM2](models/voxcpm2.md)
 - [MOSS-TTS-Nano](models/moss-tts-nano.md)
+- [Breeze TTS 2](models/breeze-tts-2.md)（`breeze-tts-2-gguf`，本地导出 GGUF+ONNX bundle）
 
 传入模型名时，SDK 检查默认模型目录，缺失时尝试从 ModelScope 下载。传入目录时，该目录必须包含 `manifest.json`，其中的 `model` 必须是当前 registry 已注册的模型名：
 
@@ -54,6 +55,8 @@ engine = TTSEngine(
 ```
 
 生产和离线环境建议使用已核验的本地目录。模型权重遵循独立许可，详见 [模型许可表](model-licenses.md)。
+
+Breeze TTS 2 当前没有默认转换下载仓库，应先按其指南导出，再以 `model="./ckpts/breeze-tts-2-gguf"` 初始化。SDK 运行不需要 Torch；Breeze 的独立导出环境使用 Torch、gguf 和 ONNX 工具，不能将旧全 ONNX bundle 仅修改模型名后加载。
 
 Windows 默认数据目录为 `%APPDATA%/StreamVox`，模型位于其中的 `ckpts/`，参考音色缓存位于 `prompts/`。可在启动 Python 前设置 `STREAMVOX_HOME`，将这些数据放到你指定的目录。
 
@@ -139,7 +142,7 @@ sf.write("result.wav", audio, engine.runtime.sample_rate)
 | `gpu` | 默认 GPU，等价于 `gpu:0`。 |
 | `gpu:<index>` | 指定设备编号，例如 `gpu:1`。 |
 
-`llama_backend` 和 `onnx_provider` 分别作用于两条推理链路。显式设置优先表达相应链路的后端要求；为了便于理解，建议让 `device` 与它们保持一致。MOSS 是纯 ONNX 模型，没有 llama 链路。
+`device` 给出默认设备意图和编号；`llama_backend` 与 `onnx_provider` 分别覆盖对应链路的后端要求。例如，`device="cpu", llama_backend="cpu", onnx_provider="cuda"` 可表达 CPU 生成、CUDA ONNX 的组合。MOSS 是纯 ONNX 模型，没有 llama 链路。
 
 ```python
 engine = TTSEngine(
@@ -158,6 +161,8 @@ finally:
 
 `actual_backends` 包含实际 `llama` / `onnx` 后端，以及主进程可见的 `onnx_sessions` provider 列表；纯 ONNX 模型没有 `llama` 键。子进程会话不会出现在主进程对象树中，但初始化时同样核对 provider。MOSS 的 DirectML 模式保留 codec decode step 使用 CPU 的已知兼容策略，该主进程会话单独列出。
 
+Breeze 的 Qwen3 主干和完整深度解码器走 llama.cpp，流式声码器使用所选 ONNX 后端。默认文本策略为 `auto`；声码器选择 CUDA 且清单声明全部三个快速文本资产时，使用 CPU ONNX 查表与 CUDA ONNX 文本主干，缺少快速资产时自动使用完整 CPU 文本图。音频嵌入、深度条件投影和参考音频编码保留在 CPU，实际会话分别公开。后端选择、快速资产与实测结果见 [Breeze 指南](models/breeze-tts-2.md)。
+
 Vulkan 设备编号不一定遵循 `CUDA_VISIBLE_DEVICES` 的重映射。多卡环境应结合日志、`actual_backends` 和系统监测确认实际设备，不能只凭显存变化判断。
 
 依赖组 `cpu`、`directml`、`onnx-cuda` 互斥；`llama-cuda` 可独立组合。单个 wheel 始终包含 llama 的 CPU、CUDA、Vulkan 三组动态库，安装 extra 不会删减其中的后端。
@@ -172,12 +177,15 @@ Vulkan 设备编号不一定遵循 `CUDA_VISIBLE_DEVICES` 的重映射。多卡�
 | S2-Pro | `temperature`、`top_p`、`top_k`、`max_length`、`min_length`、`remove_meaningless_chars` |
 | VoxCPM2 | `mode`、`control_text` 及模型指南列出的采样参数 |
 | MOSS | `mode`、`seed`、`remove_meaningless_chars` |
+| Breeze TTS 2 | `instruction`、`cfg_scale`、`temperature` / `depth_temperature`、两级 `top_k` / `top_p`、`repetition_penalty`、`max_new_tokens`、`seed`、`do_sample`、`chunk_frames` |
 
-通用性能参数为 `track_performance`。文本会经过相应模型的轻量清理和分段，但 SDK 不保证数字、日期、金额、缩写和单位一定按你期待的方式朗读；需要确定读法时，先将其改写为自然语言。
+通用性能参数为 `track_performance`，具体日志支持由模型决定。文本清理和分段同样按模型处理；Breeze 保留原始事件标记和文本段，不执行额外清理或自动分段。SDK 不保证数字、日期、金额、缩写和单位一定按你期待的方式朗读；需要确定读法时，先将其改写为自然语言。
+
+Breeze 默认 `chunk_frames=2`，每帧 80ms，因此通常每块 160ms，结束时末块可为 80ms。该参数只改变返回分组，保留完整的主干、音频编码及声码器上下文；采样参数、条件引导和边界说明见 [Breeze 指南](models/breeze-tts-2.md#采样与流式边界)。
 
 ### 多参考音频
 
-Qwen3、VoxCPM2 和 MOSS 当前只支持单参考音频。S2-Pro 支持多参考，音频和转写必须一一对齐，参考文本及目标文本应使用相同的 speaker 标记：
+Qwen3、VoxCPM2、MOSS 和 Breeze 当前只支持单参考音频。Breeze 还要求参考音频有完整转录。S2-Pro 支持多参考，音频和转写必须一一对齐，参考文本及目标文本应使用相同的 speaker 标记：
 
 ```python
 prompt = engine.make_prompt(

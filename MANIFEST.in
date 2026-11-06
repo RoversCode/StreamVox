@@ -5,6 +5,8 @@ include streamvox/bin/native-manifest.json
 recursive-include streamvox_runtime *.py
 recursive-include tests *.py
 recursive-include tools *.py
+include tools/breeze_reference/requirements.txt
+include docs/models/breeze-tts-2-validation.json
 recursive-include scripts *.sh *.ps1
 recursive-include docs *.md *.png *.svg
 recursive-include assets *.png *.svg

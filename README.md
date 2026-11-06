@@ -1,8 +1,8 @@
 # StreamVox
 
-StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 **Qwen3-TTS、S2-Pro、VoxCPM2 和 MOSS-TTS-Nano**，适用于语音助手、实时对话、配音和离线播报。音频按块生成，可以边合成边播放，无需等待整段完成。
+StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 **Qwen3-TTS、S2-Pro、VoxCPM2、MOSS-TTS-Nano 和 Breeze TTS 2**，适用于语音助手、实时对话、配音和离线播报。音频按块生成，可以边合成边播放，无需等待整段完成。
 
-**当前版本：2.0.0 · CPython 3.12**。预编译发行包面向 Windows x64；Linux x86_64 的环境准备与直接运行方式见 [Linux 源码运行](#linux-源码运行)。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
+**当前版本：2.1.0 · CPython 3.12**。预编译发行包面向 Windows x64；Linux x86_64 的环境准备与直接运行方式见 [Linux 源码运行](#linux-源码运行)。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
 
 - [性能与资源占用](#性能与资源占用)
 - [支持模型与选型](#支持模型与选型)
@@ -17,7 +17,7 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 
 - **流式合成**：逐块输出音频，便于接入播放器、语音助手和实时通信。
 - **多模型、统一接口**：支持参考音色克隆，并按模型提供音色设计、续写、多说话人和情绪控制等能力。
-- **多语言支持**：支持中文、英语、日语、韩语、法语、德语、西班牙语、俄语等主流语言；具体语言覆盖因模型而异，详情与使用方式见 [Qwen3-TTS](docs/models/qwen3-tts-clone.md)、[S2-Pro](docs/models/s2-pro.md)、[VoxCPM2](docs/models/voxcpm2.md) 和 [MOSS-TTS-Nano](docs/models/moss-tts-nano.md) 的模型说明。
+- **多语言支持**：支持中文、英语、日语、韩语、法语、德语、西班牙语、俄语等主流语言；具体语言覆盖因模型而异，详情与使用方式见 [Qwen3-TTS](docs/models/qwen3-tts-clone.md)、[S2-Pro](docs/models/s2-pro.md)、[VoxCPM2](docs/models/voxcpm2.md)、[MOSS-TTS-Nano](docs/models/moss-tts-nano.md) 和 [Breeze TTS 2](docs/models/breeze-tts-2.md) 的模型说明。
 - **多种硬件后端**：支持 CPU，以及 NVIDIA、AMD、Intel 显卡；同一个安装包包含 llama.cpp 的 CPU、CUDA、Vulkan 后端，ONNX 组件可选择 CPU、CUDA 或 DirectML。
 - **轻量运行环境**：使用 llama.cpp 与 ONNX Runtime，运行依赖无需安装 PyTorch。
 - **本地与离线部署**：内置模型下载和文件校验；模型文件完整时，可以直接从本地目录离线合成。
@@ -42,6 +42,8 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 
 CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型设计使用 CPU。MOSS 两行使用相同的 `seed=42`。实际表现会随输入文本、参考音频、后端和硬件变化，完整条件与逐次数据见 [性能实测记录](docs/performance-2.0.0.json)。
 
+Breeze TTS 2 使用 GGUF 主干与深度解码器、ONNX 编解码组件。在同一台 RTX 4090 机器上，默认 CUDA 文本配置的声音设计首包中位数为 206.5ms，参考准备后的克隆为 130.0ms；初始化与参考准备耗时另计。测量条件与逐次数据见 [Breeze 指南](docs/models/breeze-tts-2.md#当前首包优化)。
+
 ### 硬件资源建议
 
 | 模型 | 显存起步 / 推荐 | 内存起步 / 推荐 |
@@ -54,6 +56,8 @@ CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型
 
 以上为当前模型配置的经验建议，显存列针对 GPU 运行。长文本、较长参考音频及其他程序的资源占用会影响实际需求。VoxCPM2 当前使用 GGUF Q8、LocEnc / LocDiT FP32 和 AudioVAE FP16 组合。
 
+Breeze TTS 2 默认 CUDA 文本配置的实测整卡显存峰值相对加载前冷基线增加约 7.65GiB；完整资源测量口径见 [Breeze 指南](docs/models/breeze-tts-2.md#当前首包优化)。
+
 ## 支持模型与选型
 
 | 模型名 | 采样率 | 主要能力与适用场景 | 指南 |
@@ -63,10 +67,11 @@ CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型
 | `s2-pro-4b-gguf` | 44100 Hz | 多参考、多说话人和表现控制，适合角色对白与配音 | [S2-Pro](docs/models/s2-pro.md) |
 | `voxcpm2-gguf` | 48000 Hz | 音色设计、参考克隆和续写，适合需要声音控制的场景 | [VoxCPM2](docs/models/voxcpm2.md) |
 | `moss-tts-nano-onnx` | 48000 Hz | 轻量 ONNX 路线，适合无独显机器与 CPU 部署 | [MOSS](docs/models/moss-tts-nano.md) |
+| `breeze-tts-2-gguf` | 24000 Hz | GGUF+ONNX，中英文克隆、声音设计与表现控制；本地导出，权重限研究与非商业使用 | [Breeze](docs/models/breeze-tts-2.md) |
 
 没有独立显卡时，可以先尝试 **MOSS-TTS-Nano**；需要参考音色克隆时，可从 **Qwen3-TTS** 入手；需要音色设计与续写时选择 **VoxCPM2**；多说话人和表现控制需求可以考虑 **S2-Pro**。
 
-SDK 包不包含模型权重。**S2-Pro 转换权重采用 Fish Audio Research License，商业用途需要 Fish Audio 单独书面许可**；其余三类当前默认转换权重采用 Apache-2.0。模型能力、来源和许可边界见对应指南及 [模型许可表](docs/model-licenses.md)。
+SDK 包不包含模型权重。**S2-Pro 转换权重采用 Fish Audio Research License，商业用途需要 Fish Audio 单独书面许可；Breeze TTS 2 权重及衍生模型限研究与非商业使用**。Qwen3-TTS、VoxCPM2 和 MOSS-TTS-Nano 当前默认转换权重采用 Apache-2.0。模型能力、来源和许可边界见对应指南及 [模型许可表](docs/model-licenses.md)。
 
 ## 安装
 
@@ -79,14 +84,14 @@ uv venv --python 3.12 --managed-python
 .venv\Scripts\Activate.ps1
 ```
 
-从 [GitHub Releases v2.0.0](https://github.com/RoversCode/StreamVox/releases/tag/v2.0.0) 下载 `streamvox-2.0.0-cp312-none-win_amd64.whl`，按硬件选择安装命令：
+从 [GitHub Releases v2.1.0](https://github.com/RoversCode/StreamVox/releases/tag/v2.1.0) 下载 `streamvox-2.1.0-cp312-none-win_amd64.whl`，按硬件选择安装命令：
 
 | 场景 | 安装命令 |
 | --- | --- |
-| CPU | `uv pip install "./streamvox-2.0.0-cp312-none-win_amd64.whl[cpu]"` |
-| AMD / Intel / 核显，或使用 DirectML | `uv pip install "./streamvox-2.0.0-cp312-none-win_amd64.whl[directml]"` |
-| NVIDIA：ONNX 与 llama 都使用 CUDA | `uv pip install "./streamvox-2.0.0-cp312-none-win_amd64.whl[onnx-cuda,llama-cuda]"` |
-| ONNX 使用 DirectML，llama 使用 CUDA | `uv pip install "./streamvox-2.0.0-cp312-none-win_amd64.whl[directml,llama-cuda]"` |
+| CPU | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[cpu]"` |
+| AMD / Intel / 核显，或使用 DirectML | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[directml]"` |
+| NVIDIA：ONNX 与 llama 都使用 CUDA | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[onnx-cuda,llama-cuda]"` |
+| ONNX 使用 DirectML，llama 使用 CUDA | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[directml,llama-cuda]"` |
 
 `cpu`、`directml`、`onnx-cuda` 三者互斥，同一环境只安装一种 ONNX Runtime。`llama-cuda` 可以与其中任意一组组合，仅补充 llama CUDA 所需的 NVIDIA 运行依赖。CUDA 和 Vulkan 仍需要宿主机安装相应显卡驱动。
 
@@ -117,7 +122,7 @@ python -c "import streamvox; print(streamvox.__version__)"
 
 **2. 下载 GGUF 模型使用的预编译动态库**
 
-Qwen3-TTS、S2-Pro 和 VoxCPM2 需要 llama.cpp 动态库；仅使用 MOSS-TTS-Nano 时可以跳过。默认从 [llama.cpp b8683 发布页](https://github.com/ggml-org/llama.cpp/releases/tag/b8683) 下载已经编译好的 Linux 库，无需本机编译。CPU 与 Vulkan 包均可从该页面取得，版本应与项目固定的 **b8683** 保持一致。
+Qwen3-TTS、S2-Pro、VoxCPM2 和 Breeze TTS 2 需要 llama.cpp 动态库；仅使用 MOSS-TTS-Nano 时可以跳过。默认从 [llama.cpp b8683 发布页](https://github.com/ggml-org/llama.cpp/releases/tag/b8683) 下载已经编译好的 Linux 库，无需本机编译。CPU 与 Vulkan 包均可从该页面取得，版本应与项目固定的 **b8683** 保持一致。
 
 ```bash
 mkdir -p .artifacts/llama-cpu-b8683 streamvox/bin
@@ -240,7 +245,7 @@ if __name__ == "__main__":
 
 [LICENSE](LICENSE) 授予 StreamVox 自有代码的 Apache-2.0 权利。[NOTICE](NOTICE) 与 [第三方声明](THIRD_PARTY_NOTICES.md) 保留第三方权利边界；随包原生库和模型权重的许可不会因 SDK 开源而改变。
 
-感谢 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[ONNX Runtime](https://github.com/microsoft/onnxruntime)、[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)、[Fish Speech](https://github.com/fishaudio/fish-speech)、[VoxCPM](https://github.com/OpenBMB/VoxCPM) 和 [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 及其贡献者。
+感谢 [llama.cpp](https://github.com/ggml-org/llama.cpp)、[ONNX Runtime](https://github.com/microsoft/onnxruntime)、[Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)、[Fish Speech](https://github.com/fishaudio/fish-speech)、[VoxCPM](https://github.com/OpenBMB/VoxCPM)、[MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) 和 [Breeze TTS](https://github.com/breezeblue-ai/breeze-tts) 及其贡献者。
 
 ## 支持开发者
 
