@@ -130,7 +130,7 @@ def test_hardware_advice_keeps_minimum_capacity_unverified(adapter):
     assert "不代表已验证的最低门槛" in profile.notes
     assert "短句" in profile.notes
     assert profile.profile_id == "breeze-tts-2-gguf"
-    assert profile.quantization == "gguf-f32/bf16+onnx-f32"
+    assert profile.quantization == "gguf-q8_0/bf16/f32+onnx-f32"
     assert profile.min_vram_gb == profile.min_ram_gb == 0.0
     assert profile.recommended_ram_gb >= profile.min_ram_gb
 

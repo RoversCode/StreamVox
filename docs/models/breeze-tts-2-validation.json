@@ -2335,8 +2335,8 @@
       "Linux CUDA、其他 GPU 与更长上下文的性能需分别测量。"
     ]
   },
-  "latest_runtime_record": "ttfa_optimization",
-  "record_scope": "顶层 benchmark、组件后端及初次验收记录保留原始测量范围，当前默认行为与测量见 ttfa_optimization。",
+  "latest_runtime_record": "q8_distribution",
+  "record_scope": "顶层首次验收与 ttfa_optimization 等 BF16 记录保留各自历史测量范围，当前 Q8_0 发布与默认运行记录见 q8_distribution。",
   "ttfa_optimization": {
     "date": "2026-11-06",
     "status": "passed",
@@ -3996,6 +3996,744 @@
       "持久角色从磁盘读取时没有提前准备原生参考缓存，可显式调用 prepare_reference。",
       "GPU 文本路径尚未取得本轮新增的人工试听反馈，已有五段试听反馈及逐位重放对应 CPU 文本路径。"
     ],
+    "source_hash_line_endings": "源码摘要采用仓库 .gitattributes 规定的 LF 换行。"
+  },
+  "q8_distribution": {
+    "measurement_date": "2026-11-06",
+    "sdk_version_target": "2.1.1",
+    "status": "model_published_and_source_download_verified",
+    "scope": "用户明确选择有损 Q8_0。发布依据为结构与完整性、完整真实状态轨迹的执行有效性、多种子自然结束、固定语料识别核对及两段实际试听。原有数值门限的超限记录完整保留。",
+    "upstream_source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3",
+    "upstream_checkpoint_revision": "3e28c5151381a722f1d8661b4118c298caa77aa4",
+    "historical_bf16_record": "ttfa_optimization",
+    "precision": {
+      "main_generation_weights": "q8_0",
+      "depth_generation_weights": "q8_0",
+      "normalization_weights": "float32",
+      "kv_cache": "float32",
+      "onnx_components": "float32",
+      "numerical_equivalence_claimed": false
+    },
+    "quantizer": {
+      "llama_cpp_tag": "b8683",
+      "llama_cpp_commit": "d0a6dfeb28a09831d904fc4d910ddb740da82834",
+      "archive_url": "https://github.com/ggml-org/llama.cpp/releases/download/b8683/llama-b8683-bin-win-vulkan-x64.zip",
+      "archive_sha256": "d337941196b5b03227fc151da3b181eb27c2d6ee571803fd8abc9583aeb6356a",
+      "release_digest_verified": true,
+      "executable": {
+        "name": "llama-quantize.exe",
+        "size": 375296,
+        "sha256": "91af8474d5d8680695837b18c4369c4762ff60fc0d2ad1e82515ee72cedb349c"
+      },
+      "threads": 8,
+      "tensor_type_count_source": "backbone-quantize.log、depth-quantize.log"
+    },
+    "reference_bf16_assets": {
+      "backbone.gguf": {
+        "bytes": 2827491968,
+        "sha256": "f31a23e0844cfaa0a00bb1a347bbe4b87b333b7115569ed099e80019bae582d4"
+      },
+      "depth.gguf": {
+        "bytes": 868625888,
+        "sha256": "ed645069ab919387067804619c3e8c2de249988a0432a7f6fa04424252612665"
+      }
+    },
+    "gguf_assets": {
+      "backbone.gguf": {
+        "bytes": 1502346400,
+        "sha256": "8a2953b958fb019e1533b3dc68c97d83d1f4e883940a4ab0fbc4ac58ef2b2d85",
+        "tensor_types": {
+          "q8_0": 197,
+          "float32": 113
+        }
+      },
+      "depth.gguf": {
+        "bytes": 425805312,
+        "sha256": "676a1763a7474e6fc19fe3cded5940be0877233fab349739624e548bd56ef336",
+        "tensor_types": {
+          "q8_0": 86,
+          "float32": 26
+        }
+      }
+    },
+    "gguf_total_bytes": 1928151712,
+    "quality_acceptance": {
+      "basis": "q8_0_lossy_task_audit_v1",
+      "lossy_task_audit_passed": true,
+      "strict_numerical_gates_passed": false,
+      "structural_failed_cases": 0,
+      "numerical_policy": {
+        "pointwise_atol": 0.01,
+        "pointwise_rtol": 0.02,
+        "pointwise_hard_gate": false,
+        "relative_l2_max": 0.025,
+        "reference_norm_floor": 1e-06,
+        "logits_temperature": 0.9,
+        "kl_reference_to_actual_max": 0.003,
+        "max_probability_difference": 0.035
+      },
+      "numerical_validation": {
+        "synthetic_stress": {
+          "passed": false,
+          "cases": 57,
+          "failed_cases": 37,
+          "checked_outputs": 82,
+          "structural_execution_passed": true,
+          "maximum_metrics": {
+            "max_abs": 7.031386375427246,
+            "relative_l2": 0.36880712081777334,
+            "kl_reference_to_actual": 0.9857330809009213,
+            "max_probability_difference": 0.5293736751795205
+          },
+          "coverage": {
+            "full_suite": true,
+            "backbone_prefill_lengths": [
+              3,
+              5,
+              7,
+              511,
+              512,
+              513
+            ],
+            "backbone_scenarios": 6,
+            "incremental_steps": 3,
+            "batch_sizes": [
+              1,
+              2
+            ],
+            "misaligned_positions": true,
+            "depth_positions": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "depth_heads": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14
+            ]
+          }
+        },
+        "real_trajectory": {
+          "passed": false,
+          "cases": 20912,
+          "failed_cases": 6005,
+          "checked_outputs": 21575,
+          "structural_execution_passed": true,
+          "maximum_metrics": {
+            "max_abs": 1.7721977233886719,
+            "relative_l2": 0.12151089503896705,
+            "kl_reference_to_actual": 0.07766476870397579,
+            "max_probability_difference": 0.18765017033944326
+          },
+          "events": 22252,
+          "coverage": {
+            "sample_count": 6,
+            "depth_positions": [
+              0,
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "depth_heads": [
+              1,
+              2,
+              3,
+              4,
+              5,
+              6,
+              7,
+              8,
+              9,
+              10,
+              11,
+              12,
+              13,
+              14,
+              15
+            ],
+            "all_consumed_outputs": true,
+            "cfg": true,
+            "long_reference_prefix_length": 584,
+            "max_backbone_context_length": 726,
+            "complete": true
+          }
+        }
+      }
+    },
+    "runtime_consistency": {
+      "backend": "cuda",
+      "kv_precision": "float32",
+      "seed": 20261106,
+      "manual_environment_overrides": false,
+      "single_model_instance": true,
+      "torch_imported": false,
+      "reference_cache": {
+        "passed": true,
+        "cases": 12,
+        "reference_lengths": [
+          511,
+          512,
+          513
+        ],
+        "coverage": [
+          "单分支首次预填充与复用",
+          "双分支切换后重建单分支缓存",
+          "奇数参考末词变化",
+          "容量扩展后重建缓存"
+        ],
+        "maximum_hidden_absolute_error": 0.0,
+        "maximum_logits_absolute_error": 0.0,
+        "gpu_released": true
+      },
+      "reference_preparation": {
+        "passed": true,
+        "cases": 3,
+        "reference_lengths": [
+          511,
+          512,
+          513
+        ],
+        "prepared_lengths": [
+          510,
+          512,
+          512
+        ],
+        "preparation_has_no_output": true,
+        "compared_incremental_steps": 3,
+        "maximum_hidden_absolute_error": 0.0,
+        "maximum_logits_absolute_error": 0.0,
+        "gpu_released": true
+      }
+    },
+    "normal_engine_synthesis": {
+      "normal_engine_entry": true,
+      "passed": true,
+      "validation_bundle_manifest_sha256": "6a7d7af6b944d21a4e26bd1f237ec3c95298a8bec60900478dfe4aab07cc147b",
+      "seeds": [
+        7,
+        42
+      ],
+      "all_samples_natural_eos": true,
+      "all_samples_finite": true,
+      "all_samples_equal_to_audited_waveforms": true,
+      "samples": [
+        {
+          "name": "01-clear-female",
+          "seed": 42,
+          "frames": 94,
+          "seconds": 7.52,
+          "audio_sha256": "bf4830d6046ec335be324692fcac2b8b5d3d75536bfc632d14ab9f57e94aecf8",
+          "wav_sha256": "f152ee186f0dae5db0dfe4e4714dccb854c6db1b6c1cc5ab6808a772f0891a7a"
+        },
+        {
+          "name": "02-low-male",
+          "seed": 42,
+          "frames": 79,
+          "seconds": 6.32,
+          "audio_sha256": "abf89da4a15b69bde723ec05e3451c47544d3f05c3e97544af56bc7c3d2607e3",
+          "wav_sha256": "17bc94f08a0c3c67bfe2a669c956ab4313ff2c0df6f69998ba360621f483377d"
+        },
+        {
+          "name": "03-bright-female",
+          "seed": 42,
+          "frames": 89,
+          "seconds": 7.12,
+          "audio_sha256": "a8c04e7861bfa5ba3e0d0216de1518c87ce1a8a3b211f66ea0acc7fb0b93d32e",
+          "wav_sha256": "16bc456898308639f818235344e3d83b7efc8437106fe1e4cb6f592f86b62cab"
+        },
+        {
+          "name": "04-gentle-story",
+          "seed": 42,
+          "frames": 136,
+          "seconds": 10.88,
+          "audio_sha256": "505ad9df8f013cd4f7b1528bd0656f39d0613af73b9a1767e9fecd0c8d0c63e2",
+          "wav_sha256": "364373c35488b0e9a497bf53be6c1dbcea0c5a84ff342860e32537649087e17d"
+        },
+        {
+          "name": "05-reference-clone",
+          "seed": 42,
+          "frames": 106,
+          "seconds": 8.48,
+          "audio_sha256": "5438ba608d9d93f89d4486f2d7072e30f4c1f6b349beb523fb0651f45485c4be",
+          "wav_sha256": "b75389c7103f01ed6ad91e9953da1f3668d05e3454ebc7e22becbb6f6166e8d4"
+        },
+        {
+          "name": "06-long-reference",
+          "seed": 42,
+          "frames": 102,
+          "seconds": 8.16,
+          "audio_sha256": "df20998c555f4c256a5fe7be5ca9af6514ca5bbbc4181a12f96f080c3c3ff053",
+          "wav_sha256": "1949bcc79fe49dcc9b2af8b8ae37fadcc5301077cc2ceae18149521f1a96f726"
+        },
+        {
+          "name": "01-clear-female-seed7",
+          "seed": 7,
+          "frames": 77,
+          "seconds": 6.16,
+          "audio_sha256": "f96918adaa1e8d8e103798ef352451868ca465b2feeaf290cdbabd3276d23d92",
+          "wav_sha256": "ba761764afa69eaeba22c5dee0723dd161c7f55d1fc1a1948860b87d5b77dd35"
+        },
+        {
+          "name": "02-low-male-seed7",
+          "seed": 7,
+          "frames": 64,
+          "seconds": 5.12,
+          "audio_sha256": "d2105204a6255f2a552d7b7e173acb4dd208b156f3f190b76a426e81109a1aaa",
+          "wav_sha256": "1a4ec7a7e6e0f240557cb2d35b02847d107385ce1a82f261c1ef65e29991097a"
+        }
+      ]
+    },
+    "asr_content_check": {
+      "model": {
+        "id": "openai/whisper-small",
+        "revision": "973afd24965f72e36ca33b3055d56a652f456b4d"
+      },
+      "sample_count": 6,
+      "normalization": {
+        "strict": "NFKC，去除 Unicode 标点和全部空白，保留字形及大小写。",
+        "canonical": "先做 NFKC，再以 OpenCC t2s 转简体，最后去除 Unicode 标点和全部空白。",
+        "opencc_package": "opencc-python-reimplemented",
+        "opencc_version": "0.1.7",
+        "opencc_configuration": "t2s"
+      },
+      "settings": {
+        "device": "cpu",
+        "dtype": "float32",
+        "language": "zh",
+        "task": "transcribe",
+        "do_sample": false,
+        "num_beams": 1,
+        "temperature": 0.0,
+        "torch_seed": 0,
+        "deterministic_algorithms": true,
+        "sampling_rate": 16000
+      },
+      "summary": {
+        "baseline": {
+          "completed_samples": 6,
+          "total_samples": 6,
+          "strict_reference_characters": 198,
+          "strict_edit_distance": 50,
+          "strict_micro_cer": 0.25252525252525254,
+          "canonical_reference_characters": 198,
+          "canonical_edit_distance": 12,
+          "canonical_micro_cer": 0.06060606060606061
+        },
+        "candidate": {
+          "completed_samples": 6,
+          "total_samples": 6,
+          "strict_reference_characters": 198,
+          "strict_edit_distance": 42,
+          "strict_micro_cer": 0.21212121212121213,
+          "canonical_reference_characters": 198,
+          "canonical_edit_distance": 8,
+          "canonical_micro_cer": 0.04040404040404041
+        },
+        "canonical_cer_delta": -0.0202020202020202,
+        "strict_cer_delta": -0.040404040404040414
+      },
+      "scope": "仅比较同一 ASR 系统识别的内容完整度，音色与声学质量需要独立验收。"
+    },
+    "listening": {
+      "confirmed": true,
+      "feedback": "声音正常",
+      "samples": [
+        {
+          "name": "01-clear-female",
+          "audio_sha256": "bf4830d6046ec335be324692fcac2b8b5d3d75536bfc632d14ab9f57e94aecf8"
+        },
+        {
+          "name": "05-reference-clone",
+          "audio_sha256": "5438ba608d9d93f89d4486f2d7072e30f4c1f6b349beb523fb0651f45485c4be"
+        }
+      ],
+      "source": "本次用户对两段 Q8 音频的实际反馈。"
+    },
+    "default_runtime": {
+      "gguf_backend": "cuda",
+      "onnx_backend": "cuda",
+      "text_encoder_backend": "cuda",
+      "text_lookup_backend": "cpu",
+      "audio_encoder_backend": "cpu",
+      "audio_embedding_backend": "cpu",
+      "depth_conditioner_backend": "cpu",
+      "chunk_frames": 2,
+      "chunk_duration_ms": 160
+    },
+    "benchmark": {
+      "status": "passed",
+      "validation_bundle_manifest_sha256": "6a7d7af6b944d21a4e26bd1f237ec3c95298a8bec60900478dfe4aab07cc147b",
+      "manifest_unchanged_during_measurement": true,
+      "hardware": {
+        "gpu": "NVIDIA GeForce RTX 4090",
+        "gpu_memory_mib": 24564,
+        "cpu": "Intel Core i7-13700KF",
+        "os": "Windows 11",
+        "driver": "610.88"
+      },
+      "platform": "Windows-11-10.0.26200-SP0",
+      "onnxruntime_version": "1.21.1",
+      "text": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+      "instruction": "一位声音清晰、语气自然的年轻女性。",
+      "parameters": {
+        "seed": 42,
+        "max_new_tokens": 300,
+        "chunk_frames": 2
+      },
+      "warmups_per_mode": 1,
+      "measurements_per_mode": 3,
+      "initialization_seconds": 11.60022379993461,
+      "make_prompt_seconds": 0.7069409999530762,
+      "clone_reference": {
+        "source": "design-3.wav",
+        "sample_rate": 24000,
+        "samples": 134400,
+        "transcript": "你好，欢迎使用语音合成。今天我们一起测试自然、清晰的中文播报。",
+        "codes_frames": 70
+      },
+      "modes": {
+        "design": {
+          "cfg_scale": 4.0,
+          "median_first_chunk_ms": 156.2936999835074,
+          "median_elapsed_seconds": 2.130348199978471,
+          "median_rtf": 0.38041932142472695,
+          "audio_seconds": 5.6,
+          "all_trials_natural_eos": true,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        },
+        "clone": {
+          "cfg_scale": 1.0,
+          "median_first_chunk_ms": 105.13249994255602,
+          "median_elapsed_seconds": 1.9332003998570144,
+          "median_rtf": 0.345214357117324,
+          "audio_seconds": 5.6,
+          "all_trials_natural_eos": true,
+          "repeated_measured_audio_equal": true,
+          "repeated_measured_codes_equal": true
+        }
+      },
+      "memory_scope": "当前Python进程GetProcessMemoryInfo工作集/私有提交量；显存为物理GPU0整卡相对模型加载前冷基线增量；约0.2秒采样，与旧基准口径一致。",
+      "gpu_baseline_used_mib": 879,
+      "resource_peak": {
+        "working_set_mib": 6308.21484375,
+        "private_commit_mib": 12153.30859375,
+        "gpu_total_used_mib": 7009,
+        "gpu_total_delta_mib": 6130
+      },
+      "actual_backends_after_reference": {
+        "llama": "cuda",
+        "onnx": "cuda",
+        "onnx_sessions": {
+          "runtime.decoder.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.depth_conditioner.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_embedding.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._lookup.session": [
+            "CPUExecutionProvider"
+          ],
+          "runtime.text_encoder._graph.session": [
+            "CUDAExecutionProvider",
+            "CPUExecutionProvider"
+          ],
+          "runtime.audio_encoder.session": [
+            "CPUExecutionProvider"
+          ]
+        }
+      }
+    },
+    "publication": {
+      "status": "published",
+      "registry": "modelscope",
+      "repository": "ChengHee/Breeze-TTS-2-GGUF",
+      "revision": "58e63c94b99a2f6f2883aa02ebc0c3e54f7a278a",
+      "manifest_sha256": "910d5a4e80d5fd7cf51986822c83c7f8bfc1c38ce88826bbce2457f0a7c2312e",
+      "asset_count": 315,
+      "file_count_including_manifest": 316,
+      "asset_bytes": 7395969548,
+      "audit_sha256": "8bd41e84207eaf55eeb678fa717a767bb6b88811f55fb4b3614339c424526329",
+      "audit_bytes": 39820023,
+      "remote_integrity": {
+        "status": "passed",
+        "all_remote_sizes_and_sha256_match": true,
+        "anonymous_file_tree_access": true,
+        "metadata": {
+          "Visibility": 5,
+          "License": "other",
+          "LicenseName": "breezeblue-research-and-non-commercial-license",
+          "LicenseLink": "MODEL_LICENSE"
+        }
+      },
+      "validation_binding": {
+        "measured_manifest_sha256": "6a7d7af6b944d21a4e26bd1f237ec3c95298a8bec60900478dfe4aab07cc147b",
+        "published_manifest_sha256": "910d5a4e80d5fd7cf51986822c83c7f8bfc1c38ce88826bbce2457f0a7c2312e",
+        "changed_assets": [
+          "ckpt/export-report.json",
+          "ckpt/q8-validation.json"
+        ],
+        "all_other_asset_hashes_equal": true,
+        "scope": "性能和八段正常 Engine 合成记录绑定先前验证包，最终发布包增强并清理审计来源记录，所有推理资产字节保持一致。"
+      }
+    },
+    "fresh_install_auto_download": {
+      "status": "passed",
+      "scope": "源码检出的 StreamVox 2.1.1 在空数据目录与空 ModelScope 缓存中，通过正式 TTSEngine 模型名自动下载并执行 GPU 合成。",
+      "sdk_version": "2.1.1",
+      "repository": "ChengHee/Breeze-TTS-2-GGUF",
+      "entry_point": {
+        "engine": "TTSEngine",
+        "model": "breeze-tts-2-gguf",
+        "device": "gpu:0",
+        "llama_backend": "cuda",
+        "onnx_provider": "cuda"
+      },
+      "empty_home_before": true,
+      "empty_modelscope_cache_before": true,
+      "manifest_sha256": "910d5a4e80d5fd7cf51986822c83c7f8bfc1c38ce88826bbce2457f0a7c2312e",
+      "revision_binding": {
+        "download_revision_policy": "SDK 默认浮动 master",
+        "explicit_revision_pinned": false,
+        "observed_remote_master_revision": "58e63c94b99a2f6f2883aa02ebc0c3e54f7a278a",
+        "basis": "下载前后核对公开 master，以及远端文件大小与 SHA256。"
+      },
+      "assets_verified_per_initialization": 315,
+      "normal_engine_synthesis_passed": true,
+      "runtime_metadata": {
+        "gguf_backend": "cuda",
+        "onnx_backend": "cuda",
+        "generation_backend": "llama.cpp",
+        "text_encoder_backend": "cuda",
+        "text_lookup_backend": "cpu",
+        "audio_encoder_backend": "cpu",
+        "audio_embedding_backend": "cpu",
+        "depth_conditioner_backend": "cpu",
+        "kv_precision": "float32",
+        "weight_precision": "q8_0",
+        "source_commit": "daa6cb2efe5471f09369229f322d20bb956cb3c3"
+      },
+      "initialization_timing_scope": "TTSEngine 初始化耗时，首轮包含网络下载，第二轮复用缓存。",
+      "initializations": [
+        {
+          "index": 1,
+          "elapsed_seconds": 154.2616820000112,
+          "asset_hashes_checked": 315,
+          "audio_samples": 44160,
+          "audio_sha256": "9477f889f750bb3daee2eb35573a6100e5429ac510742eb02c47684e6482e5f0",
+          "chunks": 12,
+          "finite": true
+        },
+        {
+          "index": 2,
+          "elapsed_seconds": 11.853865099838004,
+          "asset_hashes_checked": 315,
+          "audio_samples": 44160,
+          "audio_sha256": "9477f889f750bb3daee2eb35573a6100e5429ac510742eb02c47684e6482e5f0",
+          "chunks": 12,
+          "finite": true
+        }
+      ],
+      "cached_asset_mtimes_unchanged": true,
+      "repeated_audio_bitwise_equal": true,
+      "torch_imported": false
+    },
+    "evidence": {
+      "quality-audit.json": {
+        "path": ".artifacts/breeze/q8/quality-audit.json",
+        "bytes": 39817536,
+        "sha256": "3691ef74b897be3ce53f4320a8c5b82c75ce1dc182018d154fa1e18dae2c698e"
+      },
+      "quantizer-provenance.json": {
+        "path": ".artifacts/breeze/q8/quantizer-provenance.json",
+        "bytes": 3601,
+        "sha256": "a9d425c15bfa96d19b2424f86c84a82ea22a628785c3bbce25fb886a11a82b92"
+      },
+      "q8-cache-report.json": {
+        "path": ".artifacts/breeze/q8/q8-cache-report.json",
+        "bytes": 51267,
+        "sha256": "bd666eca3be6a6e23ff65a968a52bebdce4f188f65b2f43415b9b6f70771237b"
+      },
+      "q8-reference-preparation-report.json": {
+        "path": ".artifacts/breeze/q8/q8-reference-preparation-report.json",
+        "bytes": 11593,
+        "sha256": "b510dc4fa4506ba4a767513b1c9e8d4246ca792e8cfdc589d779e9195245d023"
+      },
+      "verified-synthesis/report.json": {
+        "path": ".artifacts/breeze/q8/verified-synthesis/report.json",
+        "bytes": 3643,
+        "sha256": "ee5a86f0db8e628405763fd42219e6e45c1b4dc64f1deb554ec91c70f8d52493"
+      },
+      "comparison.json": {
+        "path": ".artifacts/breeze/q8/comparison.json",
+        "bytes": 8015,
+        "sha256": "40fedaa51d329e8cc31985f13975343b3abc8f8017b5eb8f86124fcc0b77e9fd"
+      },
+      "validation-cuda.json": {
+        "path": ".artifacts/breeze/q8/validation-cuda.json",
+        "bytes": 107754,
+        "sha256": "3210907d15ed6bb74dd731b3a2153d931a71d945493eb16973704c1fca3e8ab1"
+      },
+      "trajectory-validation-cuda.json": {
+        "path": ".artifacts/breeze/q8/trajectory-validation-cuda.json",
+        "bytes": 24623855,
+        "sha256": "65f4d423267148d4c5536719793ee4de09c6e622894b077c25a566c5e040b037"
+      },
+      "real-trace/plan.json": {
+        "path": ".artifacts/breeze/q8/real-trace/plan.json",
+        "bytes": 8869479,
+        "sha256": "2f4fabb2d5b37ca85da425acd97e8a32dfaf1c354c1a71ece0061084113d5078"
+      },
+      "real-trace/arrays.npz": {
+        "path": ".artifacts/breeze/q8/real-trace/arrays.npz",
+        "bytes": 258572078,
+        "sha256": "7d497ddc87d1712b133c846897a69fd2a606c3b784f7b19f7f96a85dfd038c42"
+      },
+      "backbone-quantize.log": {
+        "path": ".artifacts/breeze/q8/backbone-quantize.log",
+        "bytes": 116206,
+        "sha256": "568765d60ded865c0aa1f04aa801ad1df1014cdac1dde19869e0d35f41de813a"
+      },
+      "depth-quantize.log": {
+        "path": ".artifacts/breeze/q8/depth-quantize.log",
+        "bytes": 49389,
+        "sha256": "4c6b67f1ac04d878b933ce993e64a8a51fb90f1ee534628e4773d589744b105c"
+      },
+      "cuda_benchmark": {
+        "path": "tests/output/breeze-q8-cuda-final/report.json",
+        "bytes": 23730,
+        "sha256": "9a57db0b4e916478b9ba568329b405128aeba59cb64d5508fe33d221cf3b6354"
+      },
+      "published_manifest": {
+        "path": "ckpts/breeze-tts-2-gguf-q8-final/manifest.json",
+        "bytes": 50140,
+        "sha256": "910d5a4e80d5fd7cf51986822c83c7f8bfc1c38ce88826bbce2457f0a7c2312e"
+      },
+      "published_audit": {
+        "path": "ckpts/breeze-tts-2-gguf-q8-final/ckpt/q8-validation.json",
+        "bytes": 39820023,
+        "sha256": "8bd41e84207eaf55eeb678fa717a767bb6b88811f55fb4b3614339c424526329"
+      },
+      "final_bundle": {
+        "path": ".artifacts/breeze/q8/final-bundle.json",
+        "bytes": 319,
+        "sha256": "d61e93b1647874b263e45e0bb7490c0b3e35f8f319626acacb10e9903802618c"
+      },
+      "upload_final_result": {
+        "path": ".artifacts/breeze/q8/upload-final-result.json",
+        "bytes": 276,
+        "sha256": "be4a05683c9c85b1bb346ac9a882e17dbd2e7159befaaec352e554618ee7e99a"
+      },
+      "remote_final_verification": {
+        "path": ".artifacts/breeze/q8/remote-final-verification.json",
+        "bytes": 487,
+        "sha256": "ce16f4d8409b70af8348dae1e9b94e42040f5b2c7b60a6222e612f482aba54d0"
+      },
+      "sdk_tests_final": {
+        "path": ".artifacts/breeze/q8/sdk-tests-final.log",
+        "bytes": 2188,
+        "sha256": "c45d44714ef2116f178a66a3e88505dcc1a35a623c623c89dff5155cdd88779a"
+      },
+      "offline_tests_final": {
+        "path": ".artifacts/breeze/q8/offline-tests-final.log",
+        "bytes": 6092,
+        "sha256": "e906b62af9d94d378bea20c86016d2b1274582f70d33a50d363678ee21393c46"
+      },
+      "source_cold_download": {
+        "path": ".artifacts/breeze/q8/cold-download/report.json",
+        "bytes": 3241,
+        "sha256": "22087e5946b22651bd37df3736acb8438dbd6c35f332aad2c4657ca7ec6e2237"
+      },
+      "source_cold_download_script": {
+        "path": ".artifacts/breeze/q8/verify_cold_download.py",
+        "bytes": 3372,
+        "sha256": "bf4c46863fe62ba914bbf863e80a7a947c36864f4ca5f0d968b5fecb83f7826d"
+      }
+    },
+    "limits": [
+      "Q8_0 为用户选定的有损发布精度，37 项合成压力用例与 6005 项真实轨迹用例超出既有数值门限，发布记录保留这些失败。",
+      "ASR 记录覆盖六段固定中文语料，清晰女声与参考克隆两段已由用户确认声音正常。",
+      "性能记录覆盖 Windows 11、RTX 4090、固定中文短句和本轮合成参考，其他硬件与平台需分别测量。"
+    ],
+    "test_runs": {
+      "sdk": {
+        "scope": "SDK 全量测试",
+        "passed": 677,
+        "skipped": 7,
+        "warnings": 5,
+        "elapsed_seconds": 17.63
+      },
+      "offline": {
+        "scope": "18 个 tests/test_breeze*.py 离线测试模块",
+        "test_module_count": 18,
+        "passed": 667,
+        "skipped": 4,
+        "warnings": 16,
+        "elapsed_seconds": 25.36,
+        "skip_reason": "Windows 当前账户缺少创建符号链接权限。",
+        "warning_scope": "旧版 TorchScript ONNX 离线导出接口的弃用警告。"
+      }
+    },
+    "source_sha256": {
+      "streamvox/manifests.py": "10744d0b1aaea47accc33e2858935decb55c27444eec6c5d9a2b20ec0006a908",
+      "streamvox/models/breeze/adapter.py": "79157c8d8b9494cf8c2dc3dd69202e598767f5bff0cd91a159ab967aa8ec9754",
+      "streamvox/models/breeze/spec.py": "d53a4dea8b45fcbcea36f32e9d03b112b3a907489542a30cfe8f67bd956bf572",
+      "streamvox/version.py": "96916f4695423360a45837ec1b9f09d029d4f2600865726e08e839756f2195b6",
+      "tools/breeze_reference/prepare_q8_bundle.py": "3741cbe476d61583e39933c0002d089add68d227581d4f96e20bda62b9f7ada2",
+      "tools/breeze_reference/q8_audit.py": "2d0f3bdbf1185ee3f5b99c8c9050911920a43fe332ae1b26e053931ddab6226a",
+      "tools/breeze_reference/q8_trajectory.py": "40787aa71107d900ddd84f63c1d0a29b556f2f402129b86a11473dbd0af8f5ef",
+      "tools/breeze_reference/q8_validate.py": "dc05c9742e67555f34b8efd6d0581435b9b6d5c3cb951c2c8dade0876152405d",
+      "tests/test_breeze_adapter.py": "318cbe98cecbca9e3fd9436e3efb29449f6669c8469fbcbf478eff1f194768e1",
+      "tests/test_breeze_download.py": "c219e19850e083cd78c9f7924e36623b01169e2d5efaa309f39c7e9abd07f5d9",
+      "tests/test_breeze_prepare_q8_bundle.py": "df4e3f8aca551caadfcfeef240a62b63d4b7d36dee454d059e4af1b8d7145863",
+      "tests/test_breeze_q8_trajectory.py": "0a4f6c7b52b41c0954ec90ae8a95839af471841946819431407f1df5f59668e9",
+      "tests/test_breeze_q8_validation.py": "bb62c9633154c117443f449bdcfddaca0e43cf0e1f0535b67329f9538ccd6d1b",
+      "tests/test_release_contract.py": "862920a32eff00a993eab71ee358f86c7dc7e70edbcbedd83fcef8d8448ec9fd",
+      "tests/test_sdk_version.py": "47bff8dcc5250aa1871341e34b491d7f828ff0241a18d31a4cef15b33dac9eca",
+      "pyproject.toml": "b121760fb8b0f5abdc8c9722bb5e4159fb35da58389ad0a4ae0918321bf9a1db"
+    },
     "source_hash_line_endings": "源码摘要采用仓库 .gitattributes 规定的 LF 换行。"
   }
 }

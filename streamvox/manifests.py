@@ -6,4 +6,5 @@ DEFAULT_MODELSCOPE_REPOS: dict[str, str] = {
     "s2-pro-4b-gguf": "ChengHee/s2-pro-4b-gguf",
     "voxcpm2-gguf": "ChengHee/voxcpm2-gguf",
     "moss-tts-nano-onnx": "ChengHee/moss-tts-nano-onnx",
+    "breeze-tts-2-gguf": "ChengHee/Breeze-TTS-2-GGUF",
 }

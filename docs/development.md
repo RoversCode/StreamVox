@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [使用文档](usage.md) · [模型适配](model-adapter-guide.md)
 
-2.1.0 的发行目标为 Windows x64 / CPython 3.12。Python 模块以可读源码分发，wheel tag 为 `cp312-none-win_amd64`。其中 `none` 表示 Python 模块不依赖特定扩展 ABI；包内包含 Windows 原生动态库，因此仍限 Windows x64 / CPython 3.12。构建同时生成带原生 DLL 的 sdist，以便重建安装包；公开 Git 仓库不存放 DLL。
+2.1.1 的发行目标为 Windows x64 / CPython 3.12。Python 模块以可读源码分发，wheel tag 为 `cp312-none-win_amd64`。其中 `none` 表示 Python 模块不依赖特定扩展 ABI；包内包含 Windows 原生动态库，因此仍限 Windows x64 / CPython 3.12。构建同时生成带原生 DLL 的 sdist，以便重建安装包；公开 Git 仓库不存放 DLL。
 
 ## 仓库与贡献
 
@@ -83,10 +83,10 @@ uv run python -m streamvox.native_assets --project-root . --cache-dir .artifacts
 uv run python -m streamvox.package_release --project-root . --python .venv/Scripts/python.exe --source-commit <公开仓库40位提交> --native-cache .artifacts/native/b8683
 ```
 
-产物默认位于 `dist/windows-py312/2.1.0/artifacts/`，包括：
+产物默认位于 `dist/windows-py312/2.1.1/artifacts/`，包括：
 
-- `streamvox-2.1.0-cp312-none-win_amd64.whl`
-- `streamvox-2.1.0.tar.gz`
+- `streamvox-2.1.1-cp312-none-win_amd64.whl`
+- `streamvox-2.1.1.tar.gz`
 
 构建要求干净的 Git 源码目录，`source-commit` 必须等于该目录当前提交。暂存区直接从这个提交导出，不读取未跟踪或被忽略的工作区文件。Python 源码和第三方许可文件保留在安装包中；来源清单记录源码、构建配置及许可材料的摘要。构建和产物审计核对三组 llama 后端、版本、依赖、许可证及包内文件，拒绝旧产物或源码漂移。
 
@@ -96,13 +96,13 @@ uv run python -m streamvox.package_release --project-root . --python .venv/Scrip
 uv run python -m streamvox.release_matrix --project-root . --python .venv/Scripts/python.exe --source-commit <公开仓库40位提交> --native-cache .artifacts/native/b8683
 ```
 
-默认只进行本地构建和汇总，输出 `dist/release/2.1.0/`。外部发布使用额外的 GitHub 参数，并要求 tag 已存在且准确指向同一个公开源码提交；不能用旧提交或旧附件冒充本次构建。实际选项以各模块的 `--help` 为准。
+默认只进行本地构建和汇总，输出 `dist/release/2.1.1/`。外部发布使用额外的 GitHub 参数，并要求 tag 已存在且准确指向同一个公开源码提交；不能用旧提交或旧附件冒充本次构建。实际选项以各模块的 `--help` 为准。
 
 ## 验证
 
 ```powershell
 uv run python -m pytest tests -q
-uv run python -m twine check dist/windows-py312/2.1.0/artifacts/*
+uv run python -m twine check dist/windows-py312/2.1.1/artifacts/*
 ```
 
 再在干净 CPython 3.12 环境中安装最终 wheel，并按 README 选择一种 ONNX 依赖组。核对版本、源码导入路径、三种 llama 动态库、依赖树和示例入口；准备模型及自己有权使用的参考音频后执行实际合成。还应从 sdist 解包目录执行标准 `python -m build --wheel` 重建并安装，验证分发文件完整；这条标准重建路径使用随包 DLL，不需要 Git 仓库或重新下载原生库。

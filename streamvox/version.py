@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 
 
-SDK_VERSION = "2.1.0"
+SDK_VERSION = "2.1.1"
 
 
 def _read_source_project_version() -> str | None:

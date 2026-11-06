@@ -2,7 +2,7 @@
 
 [返回 README](../README.md) · [模型许可](model-licenses.md) · [构建与开发](development.md)
 
-本文描述 2.1.0 的公开 API。发行支持 Windows x64 / CPython 3.12，安装方式见 README。示例中的参考音频由你自行准备，参考文本应与音频内容一致。
+本文描述 2.1.1 的公开 API。发行支持 Windows x64 / CPython 3.12，安装方式见 README。示例中的参考音频由你自行准备，参考文本应与音频内容一致。
 
 ## 初始化
 
@@ -41,7 +41,7 @@ engine = TTSEngine(
 - [S2-Pro](models/s2-pro.md)
 - [VoxCPM2](models/voxcpm2.md)
 - [MOSS-TTS-Nano](models/moss-tts-nano.md)
-- [Breeze TTS 2](models/breeze-tts-2.md)（`breeze-tts-2-gguf`，本地导出 GGUF+ONNX bundle）
+- [Breeze TTS 2](models/breeze-tts-2.md)（`breeze-tts-2-gguf`，默认从 ModelScope 下载 Q8_0 GGUF+ONNX bundle）
 
 传入模型名时，SDK 检查默认模型目录，缺失时尝试从 ModelScope 下载。传入目录时，该目录必须包含 `manifest.json`，其中的 `model` 必须是当前 registry 已注册的模型名：
 
@@ -56,7 +56,9 @@ engine = TTSEngine(
 
 生产和离线环境建议使用已核验的本地目录。模型权重遵循独立许可，详见 [模型许可表](model-licenses.md)。
 
-Breeze TTS 2 当前没有默认转换下载仓库，应先按其指南导出，再以 `model="./ckpts/breeze-tts-2-gguf"` 初始化。SDK 运行不需要 Torch；Breeze 的独立导出环境使用 Torch、gguf 和 ONNX 工具，不能将旧全 ONNX bundle 仅修改模型名后加载。
+Breeze TTS 2 默认下载主干和深度解码器均为 Q8_0 的 GGUF+ONNX bundle，包含三个快速文本资产及 ONNX 外部权重。使用 `TTSEngine(model="breeze-tts-2-gguf")` 即可自动下载，后续初始化复用本地缓存。转换权重及许可证见 [ModelScope 模型仓库](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF)。
+
+SDK 运行不需要 Torch。Breeze 的独立导出环境使用 Torch、gguf 和 ONNX 工具，不能将旧全 ONNX bundle 仅修改模型名后加载。
 
 Windows 默认数据目录为 `%APPDATA%/StreamVox`，模型位于其中的 `ckpts/`，参考音色缓存位于 `prompts/`。可在启动 Python 前设置 `STREAMVOX_HOME`，将这些数据放到你指定的目录。
 
