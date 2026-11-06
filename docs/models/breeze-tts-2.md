@@ -4,7 +4,7 @@
 
 模型注册名为 `breeze-tts-2-gguf`，支持中英文、单参考音色克隆、自然语言声音设计和表现控制。主干与深度解码器使用 llama.cpp，其余组件使用 ONNX Runtime。输出为 24kHz 单声道 `float32` 音频块，默认每块两帧、160ms，结束时不足两帧的末块可以为 80ms。
 
-当前通过本地导出的 bundle 使用，没有默认转换下载仓库。已有全 ONNX 产物需要重新导出，不能通过修改模型名代替转换。
+默认转换仓库为 `ChengHee/Breeze-TTS-2-GGUF`，提供 Q8_0 生成权重和 FP32 ONNX 的完整 bundle。StreamVox 2.1.1 起，首次按模型名初始化时自动下载并校验完整资产，后续复用本地模型。也可传入已核验的本地目录。[ModelScope 模型](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF)
 
 ## 固定来源与许可
 
@@ -20,8 +20,8 @@
 
 | 组件 | 资产与后端 | 保留的计算 |
 | --- | --- | --- |
-| Qwen3 主干 | `backbone.gguf`，llama.cpp | 完整因果上下文、查询与键归一化、首码本及结束类别预测。 |
-| Llama 深度解码器 | `depth.gguf`，llama.cpp | 十六码本嵌入与十五组位置输出头，逐帧生成剩余十五个码本。 |
+| Qwen3 主干 | `backbone.gguf`，llama.cpp，默认 Q8_0 | 完整因果上下文、查询与键归一化、首码本及结束类别预测。 |
+| Llama 深度解码器 | `depth.gguf`，llama.cpp，默认 Q8_0 | 十六码本嵌入与十五组位置输出头，逐帧生成剩余十五个码本。 |
 | T5Gemma2 文本编码器 | 默认按资产和声码器后端选择 CPU ONNX 查表与 CUDA ONNX 主干，或完整 CPU `text_encoder.onnx` | 独立编码参考转录与目标文本，保留双向局部及全局注意力和文本投影，全部使用 FP32。 |
 | 音频嵌入 | `audio_embedding.onnx`，CPU | 按码本偏移查表，对十六行嵌入求和，组成下一帧的主干输入。 |
 | 深度条件投影 | `depth_conditioner.onnx`，CPU | 每帧开始时将主干隐藏状态经一次 `h @ P.T` 投影，从 2048 维进入 1024 维深度空间。 |
@@ -30,9 +30,21 @@
 
 文本编码器的 512 词局部窗口允许左侧 255 词、右侧 256 词，b8683 的 `gemma-embedding` 使用对称窗口，边界与原模型不同。因此文本编码器保留 ONNX，不能只替换架构名称迁入该原生图。
 
-深度解码器的音频查表已在导出时应用等价投影 `E' = E @ P.T`。生成后续码本时直接使用 GGUF 中的投影表，`depth_conditioner.onnx` 只负责每帧起始条件，避免再次投影码本嵌入。完整十六码本和十五组输出头均保留，不采用量化、剪枝或码本削减。导出时只排除推理不读取的 `codec_model` 与 `embed_text_tokens`。
+深度解码器的音频查表先在导出时应用等价投影 `E' = E @ P.T`，默认发布版本再按 Q8_0 量化该投影表。生成后续码本时直接使用 GGUF 中的投影表，`depth_conditioner.onnx` 只负责每帧起始条件，避免再次投影码本嵌入。完整十六码本和十五组输出头均提供。导出时只排除推理不读取的 `codec_model` 与 `embed_text_tokens`。
 
 快速文本路径将原始嵌入表以只读内存映射零复制注入 CPU ONNX `Gather`，再由 CUDA ONNX 执行原始 FP32 文本主干。嵌入表保留在主机内存，新增显存主要来自文本主干权重、执行工作区与缓存。`text_encoder_lookup.onnx`、`text_encoder_lookup.json` 与 `text_encoder_trunk.onnx` 共同声明这条路径。
+
+## 默认 Q8 模型与自动下载
+
+主干与深度解码器使用官方 llama.cpp b8683 默认 `Q8_0` 策略，二维权重保存为 Q8_0，归一化及 RoPE 频率使用 FP32。两个 GGUF 总量从原 BF16 的约 3.44GiB 降到约 1.80GiB。全部 ONNX 图和外部参数、原始分词器及快速文本资产随模型一起提供，完整 bundle 约 7.38GB。
+
+SDK 运行环境按下文准备后，可直接使用 `model="breeze-tts-2-gguf"`。下载器沿用项目现有的 ModelScope 快照、缓存、逐文件 SHA256 校验和完成后发布机制。Windows 默认模型目录为 `%APPDATA%/StreamVox/ckpts`，可通过 `STREAMVOX_HOME` 指定数据根目录。已有 2.1.0 安装需要升级到 2.1.1 才能取得新增的自动下载映射。
+
+Q8_0 会引入权重近似与量化计算误差。本次发布按有损任务范围验收，保留了原始随机压力和真实轨迹的严格数值超限记录。六条真实任务覆盖全部原生调用与缓存、21,575 个消费输出、全部十六码本及条件引导。形状、有限值、缓存操作和词表位置检查正常，按原单图门限统计时，57 个随机探针中 37 项超限，20,912 个真实消费事件中 6,005 项超限，包含 CFG 放大后的差异。
+
+八次自由合成覆盖两个随机种子、声音设计、参考克隆及长参考克隆，均输出有限音频并自然结束。同一 Whisper-small 对六条固定文本的内容复核中，统一简体和标点归一化后的字符错误率为 BF16 的 12/198 与 Q8 的 8/198，各条 Q8 错误数均未高于基线。该指标用于固定语料的内容核对，两段 Q8 女声与克隆音频还取得本次用户“声音正常”的试听反馈。
+
+完整误差、ASR 原始转录、试听音频摘要与量化器来源位于模型的 `ckpt/q8-validation.json`。`strict_numerical_gates_passed=false` 和 `numerical_equivalence_claimed=false` 明确记录有损验收范围，原 BF16 导出与验收另存于 `ckpt/source-export-report.json`。
 
 ## 准备运行与导出环境
 
@@ -92,7 +104,7 @@ import soundfile as sf
 
 if __name__ == "__main__":
     engine = TTSEngine(
-        model="ckpts/breeze-tts-2-gguf",
+        model="breeze-tts-2-gguf",
         device="gpu:0",
         llama_backend="cuda",
         onnx_provider="cuda",
@@ -190,7 +202,20 @@ CUDA 声码器在运行时持有的固定线程上执行，与下一帧码本生
 
 Tiny 仅支持 FP32，其产物不能作为真实 TTS bundle 加载。生成组件验证包含完整码本、预填充与连续增量解码、独立条件分支及缓存重置，ONNX 验证保留文本动态窗口、音频嵌入、深度条件投影及声码器状态对照。导出结果记录在 bundle 的 `ckpt/export-report.json`。[数值校验实现](../../tools/breeze_reference/numerics.py)
 
-### 当前首包优化
+### 当前 Q8 性能
+
+2026-11-06 在 Windows 11、RTX 4090 24GB、Core i7-13700KF、ONNX Runtime 1.21.1 上测量默认 Q8_0 模型，生成、文本主干和声码器均使用 CUDA。每种模式先执行一次完整请求，再测量三次，默认每包 160ms 音频。
+
+| 模式 | 首次请求首包 | 三次首包中位数 | RTF 中位数 |
+| --- | ---: | ---: | ---: |
+| 声音设计，CFG=4 | 161.6ms | 156.3ms | 0.3804 |
+| 参考准备后的克隆，CFG=1 | 107.0ms | 105.1ms | 0.3452 |
+
+完整初始化与校验耗时 11.60 秒，角色准备耗时 0.707 秒，分别单独计时。整卡显存峰值相对冷基线增加 6130MiB，约 5.99GiB，工作集峰值约 6308MiB，私有提交量峰值约 12153MiB。显存按约 0.2 秒间隔采样整张物理 GPU 的占用增量。
+
+固定文本、设计指令、种子与下方 BF16 历史测量一致，参数为 `seed=42, max_new_tokens=300, chunk_frames=2`。本次设计和克隆各生成 5.60 秒音频，克隆使用第三次 Q8 设计输出作为参考，八次请求全部自然结束，各模式三次码本及完整浮点音频摘要一致。量化和参考长度差异会影响随机生成轨迹，跨精度 RTF 及克隆首包比较应结合这些条件。完整记录见验收 JSON 的 `q8_distribution` 字段。[验收记录](breeze-tts-2-validation.json)
+
+### 历史 BF16 首包优化
 
 2026-11-06 在 Windows 11、RTX 4090 24GB、Core i7-13700KF、ONNX Runtime 1.21.1 上完成真实模型验收。生成权重使用原始 BF16 存储，原生 KV 缓存与全部 ONNX 组件为 FP32。生成与声码器均使用 CUDA，分别测量默认 CUDA 文本主干和显式 CPU 文本两种配置。详细数据、数值对照和缓存验证保存在验收 JSON 的 `ttfa_optimization` 字段。[验收记录](breeze-tts-2-validation.json)
 

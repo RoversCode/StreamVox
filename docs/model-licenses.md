@@ -18,9 +18,9 @@ StreamVox 自有代码采用 Apache-2.0。模型权重、词表、音频编解�
 
 ## Breeze TTS 2
 
-`breeze-tts-2-gguf` 使用本地导出的 [BreezeBlue/breeze-tts-2](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4)，固定检查点为 `3e28c5151381a722f1d8661b4118c298caa77aa4`；参考[源码提交](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3)为 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。目前没有默认转换下载仓库。
+`breeze-tts-2-gguf` 使用本地导出的 [BreezeBlue/breeze-tts-2](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4)，固定检查点为 `3e28c5151381a722f1d8661b4118c298caa77aa4`；参考[源码提交](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3)为 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。默认转换模型发布于 [ChengHee/Breeze-TTS-2-GGUF](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF)，使用 Q8_0 生成权重和 FP32 ONNX。
 
-2026-11-04 核对的上游说明明确：源码采用 Apache-2.0，**模型权重、衍生模型和自托管输出仅供研究及非商业用途**。Qwen3 主干与完整深度解码器转换为 GGUF，其余编码、条件投影及声码器使用 ONNX；精确提升到 FP32 或保留原始 BF16、不量化的转换均不改变其许可。再分发时应保留该检查点的完整许可及归属文件；SDK 的 Apache-2.0 不授予该模型的商业使用权。
+2026-11-04 核对的上游说明明确：源码采用 Apache-2.0，**模型权重、衍生模型和自托管输出仅供研究及非商业用途**。Qwen3 主干与完整深度解码器转换为 GGUF，其余编码、条件投影及声码器使用 ONNX；FP32、原始 BF16 及 Q8_0 量化转换均适用该模型许可。再分发时应保留该检查点的完整许可及归属文件；SDK 的 Apache-2.0 不授予该模型的商业使用权。
 
 ## S2-Pro
 

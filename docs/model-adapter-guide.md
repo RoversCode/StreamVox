@@ -1177,7 +1177,7 @@ engine = TTSEngine(model="ckpts/my-tts-1b-gguf")
 
 ## 11. 打包和发布接入
 
-2.1.0 在 Windows x64 / CPython 3.12 上分发可读 Python 源码，wheel tag 为 `cp312-none-win_amd64`。新增 adapter、runtime、schema、worker 和文本处理模块应直接作为源码包含在包中。
+2.1.1 在 Windows x64 / CPython 3.12 上分发可读 Python 源码，wheel tag 为 `cp312-none-win_amd64`。新增 adapter、runtime、schema、worker 和文本处理模块应直接作为源码包含在包中。
 
 `pyproject.toml` 负责包发现和资源收集。新增其他类型的运行资产时，补充包数据规则；不要将模型权重塞进 SDK 安装包。模型 bundle 应单独分发并保留其 LICENSE/NOTICE。新模型的第三方代码或派生实现也应记录实际来源提交，保留原始版权与许可。
 

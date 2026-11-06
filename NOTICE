@@ -8,13 +8,13 @@ VoxCPM2、MOSS-TTS-Nano 和 Breeze TTS 2。第三方组件、派生文件及模�
 继续适用它们原有的许可证；本声明不将第三方材料重新许可为 Apache-2.0。
 
 组件来源、许可证副本与分发说明见 THIRD_PARTY_NOTICES.md 和 third_party/licenses/。
-模型权重来源及独立许可见 https://github.com/RoversCode/StreamVox/blob/v2.1.0/docs/model-licenses.md。
+模型权重来源及独立许可见 https://github.com/RoversCode/StreamVox/blob/v2.1.1/docs/model-licenses.md。
 SDK 安装包不包含模型权重。
 
 Breeze TTS 2 派生实现参考提交 daa6cb2efe5471f09369229f322d20bb956cb3c3。
 对应模型检查点固定为 BreezeBlue/breeze-tts-2 的 3e28c5151381a722f1d8661b4118c298caa77aa4。
 Qwen3 主干与完整深度解码器转换为 GGUF，其余编码、条件投影和音频编解码组件使用 ONNX，
-保留完整十六码本及十五组位置输出头；深度嵌入采用等价投影 E'=E@P.T，未量化或微调。
+保留完整十六码本及十五组位置输出头；深度嵌入先采用投影 E'=E@P.T，默认发布的生成权重再按 Q8_0 量化。
 Breeze 权重、衍生模型和自托管输出继续适用该检查点的研究与非商业许可；
 StreamVox 的源码许可不授予对这些模型材料的商业使用权。
 上游模型实现版权：Copyright 2025 Sesame and The HuggingFace Inc. team. All rights reserved.

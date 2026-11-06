@@ -2,7 +2,7 @@
 
 StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngine` 接入 **Qwen3-TTS、S2-Pro、VoxCPM2、MOSS-TTS-Nano 和 Breeze TTS 2**，适用于语音助手、实时对话、配音和离线播报。音频按块生成，可以边合成边播放，无需等待整段完成。
 
-**当前版本：2.1.0 · CPython 3.12**。预编译发行包面向 Windows x64；Linux x86_64 的环境准备与直接运行方式见 [Linux 源码运行](#linux-源码运行)。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
+**当前版本：2.1.1 · CPython 3.12**。预编译发行包面向 Windows x64；Linux x86_64 的环境准备与直接运行方式见 [Linux 源码运行](#linux-源码运行)。SDK 全部功能免费提供，采用 [Apache-2.0](LICENSE)；模型权重和第三方组件遵循各自许可证。
 
 - [性能与资源占用](#性能与资源占用)
 - [支持模型与选型](#支持模型与选型)
@@ -42,7 +42,7 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 
 CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型设计使用 CPU。MOSS 两行使用相同的 `seed=42`。实际表现会随输入文本、参考音频、后端和硬件变化，完整条件与逐次数据见 [性能实测记录](docs/performance-2.0.0.json)。
 
-Breeze TTS 2 使用 GGUF 主干与深度解码器、ONNX 编解码组件。在同一台 RTX 4090 机器上，默认 CUDA 文本配置的声音设计首包中位数为 206.5ms，参考准备后的克隆为 130.0ms；初始化与参考准备耗时另计。测量条件与逐次数据见 [Breeze 指南](docs/models/breeze-tts-2.md#当前首包优化)。
+Breeze TTS 2 默认使用 Q8_0 GGUF 主干与深度解码器、FP32 ONNX 编解码组件。在同一台 RTX 4090 机器上，CUDA 文本配置的声音设计首包中位数为 156.3ms，参考准备后的克隆为 105.1ms，RTF 分别为 0.3804 和 0.3452。初始化与参考准备耗时另计，默认每块 160ms 音频。测量条件与 BF16 历史记录见模型指南。[Breeze 指南](docs/models/breeze-tts-2.md#当前-q8-性能)
 
 ### 硬件资源建议
 
@@ -56,7 +56,7 @@ Breeze TTS 2 使用 GGUF 主干与深度解码器、ONNX 编解码组件。在�
 
 以上为当前模型配置的经验建议，显存列针对 GPU 运行。长文本、较长参考音频及其他程序的资源占用会影响实际需求。VoxCPM2 当前使用 GGUF Q8、LocEnc / LocDiT FP32 和 AudioVAE FP16 组合。
 
-Breeze TTS 2 默认 CUDA 文本配置的实测整卡显存峰值相对加载前冷基线增加约 7.65GiB；完整资源测量口径见 [Breeze 指南](docs/models/breeze-tts-2.md#当前首包优化)。
+Breeze TTS 2 默认 Q8_0 权重在 CUDA 文本配置下，实测整卡显存峰值相对加载前冷基线增加约 5.99GiB。资源测量口径与适用范围见模型指南。[Breeze 指南](docs/models/breeze-tts-2.md#当前-q8-性能)
 
 ## 支持模型与选型
 
@@ -67,7 +67,7 @@ Breeze TTS 2 默认 CUDA 文本配置的实测整卡显存峰值相对加载前�
 | `s2-pro-4b-gguf` | 44100 Hz | 多参考、多说话人和表现控制，适合角色对白与配音 | [S2-Pro](docs/models/s2-pro.md) |
 | `voxcpm2-gguf` | 48000 Hz | 音色设计、参考克隆和续写，适合需要声音控制的场景 | [VoxCPM2](docs/models/voxcpm2.md) |
 | `moss-tts-nano-onnx` | 48000 Hz | 轻量 ONNX 路线，适合无独显机器与 CPU 部署 | [MOSS](docs/models/moss-tts-nano.md) |
-| `breeze-tts-2-gguf` | 24000 Hz | GGUF+ONNX，中英文克隆、声音设计与表现控制；本地导出，权重限研究与非商业使用 | [Breeze](docs/models/breeze-tts-2.md) |
+| `breeze-tts-2-gguf` | 24000 Hz | GGUF+ONNX，中英文克隆、声音设计与表现控制。默认从 ModelScope 下载 Q8_0，权重限研究与非商业使用 | [Breeze](docs/models/breeze-tts-2.md) · [ModelScope](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF) |
 
 没有独立显卡时，可以先尝试 **MOSS-TTS-Nano**；需要参考音色克隆时，可从 **Qwen3-TTS** 入手；需要音色设计与续写时选择 **VoxCPM2**；多说话人和表现控制需求可以考虑 **S2-Pro**。
 
@@ -84,14 +84,14 @@ uv venv --python 3.12 --managed-python
 .venv\Scripts\Activate.ps1
 ```
 
-从 [GitHub Releases v2.1.0](https://github.com/RoversCode/StreamVox/releases/tag/v2.1.0) 下载 `streamvox-2.1.0-cp312-none-win_amd64.whl`，按硬件选择安装命令：
+从 [GitHub Releases v2.1.1](https://github.com/RoversCode/StreamVox/releases/tag/v2.1.1) 下载 `streamvox-2.1.1-cp312-none-win_amd64.whl`，按硬件选择安装命令：
 
 | 场景 | 安装命令 |
 | --- | --- |
-| CPU | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[cpu]"` |
-| AMD / Intel / 核显，或使用 DirectML | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[directml]"` |
-| NVIDIA：ONNX 与 llama 都使用 CUDA | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[onnx-cuda,llama-cuda]"` |
-| ONNX 使用 DirectML，llama 使用 CUDA | `uv pip install "./streamvox-2.1.0-cp312-none-win_amd64.whl[directml,llama-cuda]"` |
+| CPU | `uv pip install "./streamvox-2.1.1-cp312-none-win_amd64.whl[cpu]"` |
+| AMD / Intel / 核显，或使用 DirectML | `uv pip install "./streamvox-2.1.1-cp312-none-win_amd64.whl[directml]"` |
+| NVIDIA：ONNX 与 llama 都使用 CUDA | `uv pip install "./streamvox-2.1.1-cp312-none-win_amd64.whl[onnx-cuda,llama-cuda]"` |
+| ONNX 使用 DirectML，llama 使用 CUDA | `uv pip install "./streamvox-2.1.1-cp312-none-win_amd64.whl[directml,llama-cuda]"` |
 
 `cpu`、`directml`、`onnx-cuda` 三者互斥，同一环境只安装一种 ONNX Runtime。`llama-cuda` 可以与其中任意一组组合，仅补充 llama CUDA 所需的 NVIDIA 运行依赖。CUDA 和 Vulkan 仍需要宿主机安装相应显卡驱动。
 

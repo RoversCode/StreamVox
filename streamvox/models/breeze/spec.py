@@ -40,7 +40,7 @@ class BreezeTTS2GGUFModelSpec:
     recommended_vram_gb: float = 12.0
     min_ram_gb: float = 0.0
     recommended_ram_gb: float = 16.0
-    notes: str = "RTX 4090 的 BF16 权重、FP32 缓存混合链路已实测短句；建议预留 16GB 内存与 12GB 显存，FP32 权重和长上下文的用量需分别测量，不代表已验证的最低门槛。"
+    notes: str = "RTX 4090 的 Q8_0 与 BF16 权重、FP32 缓存混合链路已分别实测短句；建议预留 16GB 内存与 12GB 显存，FP32 权重和长上下文的用量需分别测量，不代表已验证的最低门槛。"
 
 
 BREEZE_TTS_2_GGUF_SPEC = BreezeTTS2GGUFModelSpec()

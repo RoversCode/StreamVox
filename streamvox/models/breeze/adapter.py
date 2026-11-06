@@ -83,7 +83,7 @@ class BreezeTTS2GGUFAdapter:
         return ModelFootprintProfile(
             profile_id=self.spec.hardware_profile_id,
             parameter_billion=self.spec.parameter_billion,
-            quantization="gguf-f32/bf16+onnx-f32",
+            quantization="gguf-q8_0/bf16/f32+onnx-f32",
             min_vram_gb=self.spec.min_vram_gb,
             recommended_vram_gb=self.spec.recommended_vram_gb,
             min_ram_gb=self.spec.min_ram_gb,
