@@ -15,6 +15,19 @@ def test_release_is_readable_source_without_python_extension_abi():
     assert targets[0].sdist_filename == "streamvox-2.1.2.tar.gz"
 
 
+def test_source_archive_declares_documentation_evidence():
+    """源码包应携带项目文档链接到的两份原始验证记录。
+
+    Returns:
+        两份记录都在源码包清单中显式声明时正常返回。
+    """
+    project_root = Path(__file__).resolve().parents[1]
+    declarations = (project_root / "MANIFEST.in").read_text(encoding="utf-8").splitlines()
+
+    assert "include docs/performance-2.0.0.json" in declarations
+    assert "include docs/models/breeze-tts-2-validation.json" in declarations
+
+
 def test_llama_cuda_extra_has_only_required_libraries():
     """安装 llama CUDA 不能顺带安装 ONNX GPU 或 cuDNN。"""
     project_root = Path(__file__).resolve().parents[1]
