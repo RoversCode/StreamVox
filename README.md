@@ -27,27 +27,30 @@ StreamVox 是一个开源的本地流式语音合成 SDK，用统一的 `TTSEngi
 
 ### 流式推理速度
 
-以下为 **SDK 2.0.0** 在 **Windows 11、NVIDIA GeForce RTX 4090 24 GB、Intel Core i7-13700KF** 上的单请求实测。各模型使用同一段参考音频和固定中文短句进行音色克隆，预热 1 次后测量 3 次，表中取各指标的中位数。
+下表汇总 **Windows 11、NVIDIA GeForce RTX 4090 24 GB、Intel Core i7-13700KF** 上已有的单请求实测，逐行标注实测 SDK 版本。每种模式预热 1 次后测量 3 次，取各指标的中位数。
 
-| 模型 | 合成后端 | 首包延迟 | RTF | 相对实时速度 |
-| --- | --- | ---: | ---: | ---: |
-| Qwen3-TTS 0.6B | CUDA | **186 ms** | 0.148 | 6.76× |
-| Qwen3-TTS 1.7B | CUDA | **187 ms** | 0.159 | 6.29× |
-| S2-Pro | CUDA | **401 ms** | 0.347 | 2.88× |
-| VoxCPM2 | CUDA | **113 ms** | 0.344 | 2.91× |
-| MOSS-TTS-Nano | ONNX CUDA | **83 ms** | 0.234 | 4.27× |
-| MOSS-TTS-Nano | ONNX CPU | **90 ms** | 0.262 | 3.81× |
+| 模型与模式 | 实测 SDK | 合成后端 | 首包延迟 | RTF | 相对实时速度 |
+| --- | --- | --- | ---: | ---: | ---: |
+| Breeze TTS 2 Q8_0，参考克隆 | 2.1.1 源码 | CUDA | **105.1 ms** | 0.345 | 2.90× |
+| Breeze TTS 2 Q8_0，声音设计 | 2.1.1 源码 | CUDA | **156.3 ms** | 0.380 | 2.63× |
+| Qwen3-TTS 0.6B | 2.0.0 | CUDA | **186 ms** | 0.148 | 6.76× |
+| Qwen3-TTS 1.7B | 2.0.0 | CUDA | **187 ms** | 0.159 | 6.29× |
+| S2-Pro | 2.0.0 | CUDA | **401 ms** | 0.347 | 2.88× |
+| VoxCPM2 | 2.0.0 | CUDA | **113 ms** | 0.344 | 2.91× |
+| MOSS-TTS-Nano | 2.0.0 | ONNX CUDA | **83 ms** | 0.234 | 4.27× |
+| MOSS-TTS-Nano | 2.0.0 | ONNX CPU | **90 ms** | 0.262 | 3.81× |
 
 首包延迟从发起 `stream()` 到收到第一个音频片段计时，不包含模型加载、参考音频编码和预热。**RTF = 完整合成耗时 / 生成音频时长**，越小越快；例如 RTF 为 0.2，表示生成 1 秒音频约需 0.2 秒，即约 5 倍实时速度。
 
-CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型设计使用 CPU。MOSS 两行使用相同的 `seed=42`。实际表现会随输入文本、参考音频、后端和硬件变化，完整条件与逐次数据见 [性能实测记录](docs/performance-2.0.0.json)。
+CUDA 行使用 CUDA 合成后端，部分模型的参考编码组件仍按模型设计使用 CPU。Breeze TTS 2 使用 Q8_0 GGUF 主干与深度解码器、FP32 ONNX 组件，文本主干和声码器使用 CUDA，默认每块输出 **160 ms** 音频。完整初始化与校验耗时 11.60 秒，克隆参考准备耗时 0.707 秒，均单独计时。[Breeze 实测记录](docs/models/breeze-tts-2-validation.json) · [测量条件](docs/models/breeze-tts-2.md#当前-q8-性能)
 
-Breeze TTS 2 默认使用 Q8_0 GGUF 主干与深度解码器、FP32 ONNX 编解码组件。在同一台 RTX 4090 机器上，CUDA 文本配置的声音设计首包中位数为 156.3ms，参考准备后的克隆为 105.1ms，RTF 分别为 0.3804 和 0.3452。初始化与参考准备耗时另计，默认每块 160ms 音频。测量条件与 BF16 历史记录见模型指南。[Breeze 指南](docs/models/breeze-tts-2.md#当前-q8-性能)
+Breeze 的设计与克隆使用同一句固定中文文本，克隆参考为本轮设计生成的 5.60 秒音频。其余六行沿用 SDK 2.0.0 的同一段参考音频和另一句固定中文文本，MOSS 两行使用相同的 `seed=42`。输入、参考长度和音频块长度按各自记录执行，实际表现随这些条件及硬件变化。[SDK 2.0.0 实测记录](docs/performance-2.0.0.json)
 
 ### 硬件资源建议
 
 | 模型 | 显存起步 / 推荐 | 内存起步 / 推荐 |
 | --- | ---: | ---: |
+| Breeze TTS 2 Q8_0 | 起步待实测 / 12 GB | 起步待实测 / 16 GB |
 | Qwen3-TTS 0.6B | 2 / 3 GB | 3 / 5 GB |
 | Qwen3-TTS 1.7B | 3 / 4 GB | 4 / 6 GB |
 | S2-Pro | 7 / 8 GB | 6 / 8 GB |
@@ -56,7 +59,7 @@ Breeze TTS 2 默认使用 Q8_0 GGUF 主干与深度解码器、FP32 ONNX 编解�
 
 以上为当前模型配置的经验建议，显存列针对 GPU 运行。长文本、较长参考音频及其他程序的资源占用会影响实际需求。VoxCPM2 当前使用 GGUF Q8、LocEnc / LocDiT FP32 和 AudioVAE FP16 组合。
 
-Breeze TTS 2 默认 Q8_0 权重在 CUDA 文本配置下，实测整卡显存峰值相对加载前冷基线增加约 5.99GiB。资源测量口径与适用范围见模型指南。[Breeze 指南](docs/models/breeze-tts-2.md#当前-q8-性能)
+Breeze TTS 2 默认 Q8_0 权重在 CUDA 文本配置下，实测整卡显存峰值相对加载前冷基线增加 **6130 MiB，约 5.99 GiB**，进程工作集峰值约 6308 MiB。表中建议为该配置预留 12 GB 显存与 16 GB 内存，最低容量待分别实测。资源测量口径与适用范围见模型指南。[Breeze 指南](docs/models/breeze-tts-2.md#当前-q8-性能)
 
 ## 支持模型与选型
 
@@ -165,6 +168,8 @@ Vulkan 包需要包含 `libggml-vulkan.so`，CUDA 包需要包含 `libggml-cuda.
 
 ## 快速开始
 
+### Qwen3-TTS 参考音色克隆
+
 以下示例使用你自行准备、并有权使用的参考音频。`prompt_text` 应与音频内容一致。
 
 ```python
@@ -210,6 +215,40 @@ python example/synthesize.py --model qwen3-tts-clone-0.6b-gguf --reference-audio
 `stream()` 逐块返回 `float32` 的 `numpy.ndarray`，采样率从 `engine.runtime.sample_rate` 读取。上面的示例为方便保存 WAV 而汇总所有片段；接入实时播放时，可以在迭代过程中逐块播放或发送音频。
 
 `TTSEngine` 除 `model` 外的初始化参数必须按名称传入。模型名可替换为已下载模型的目录；离线部署建议使用本地目录并保留默认哈希校验。Prompt 缓存、长音频写入与更多调用方式见 [使用文档](docs/usage.md)。
+
+### Breeze TTS 2 声音设计与自动下载
+
+安装 NVIDIA CUDA 依赖后，可通过自然语言描述生成音色。首次使用 `model="breeze-tts-2-gguf"` 时，SDK 从 `ChengHee/Breeze-TTS-2-GGUF` 自动下载并校验完整 Q8_0 模型，后续复用本地缓存。Windows 默认模型目录为 `%APPDATA%/StreamVox/ckpts`，可通过 `STREAMVOX_HOME` 指定数据根目录。[ModelScope 模型](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF)
+
+```python
+import numpy as np
+import soundfile as sf
+
+from streamvox import TTSEngine
+
+
+if __name__ == "__main__":
+    engine = TTSEngine(
+        model="breeze-tts-2-gguf",
+        device="gpu:0",
+        llama_backend="cuda",
+        onnx_provider="cuda",
+    )
+    try:
+        chunks = list(engine.stream(
+            text="你好，欢迎使用语音合成。",
+            instruction="一位声音清晰、语气自然的年轻女性。",
+            cfg_scale=4.0,
+            seed=42,
+        ))
+        if not chunks:
+            raise RuntimeError("本次合成没有生成音频。")
+        sf.write("breeze-output.wav", np.concatenate(chunks), engine.runtime.sample_rate)
+    finally:
+        engine.shutdown()
+```
+
+参考音色克隆、CPU 运行、采样参数与组件分工见模型指南。Q8_0 的有损数值超限、内容复核和试听记录随模型提供。[Breeze TTS 2 指南](docs/models/breeze-tts-2.md)
 
 ## 后端选择
 
