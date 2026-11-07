@@ -2,205 +2,184 @@
 
 [返回 README](../../README.md) · [使用文档](../usage.md) · [模型许可与来源](../model-licenses.md)
 
-本文中的 Python 片段用于说明已初始化引擎的调用方式。独立脚本应使用主入口守卫，并在 `finally` 中调用 `engine.shutdown()`；`stream()` 逐块返回 `float32` 的 `numpy.ndarray`，需要实际迭代才会执行合成。参考音频由你自行准备，项目不附带示例录音。
+MOSS-TTS-Nano 将文字逐步生成为语音，StreamVox 接入型号为 `moss-tts-nano-onnx`。它可以在 CPU 上运行，支持用一条录音提取音色，也支持直接从文字生成语音。
 
-默认转换权重采用 Apache-2.0，原始权利人和转换来源见上面的模型许可表。SDK 与模型分别适用各自许可。
+模型目录（bundle）保存权重、词表和 `manifest.json`。参考音色资产（Prompt）保存参考录音经过编码得到的模型输入，以及可选的录音转写。先调用 `make_prompt()` 建立 Prompt，后续合成即可复用同一个声音，省去重新读取和编码参考录音的步骤。
 
-
-本文档面向希望接入 StreamVox 的开发者，集中说明 `MOSS-TTS-Nano` 的模型定位、核心能力、适用场景与工程注意事项。  
-当前 StreamVox 接入型号为：
-
-* `moss-tts-nano-onnx`
+默认转换权重采用 Apache-2.0，SDK 与模型分别适用各自许可。原始权利人和转换来源见 [模型许可与来源](../model-licenses.md)。
 
 ## 1. 系列定位
 
-MOSS-TTS-Nano 是当前 StreamVox 中最偏**低资源、低成本、纯 CPU 实时生成**路线的模型。  
-它最大的价值不在于“参数规模最小”本身，而在于：
+MOSS-TTS-Nano 的语音生成主模型约有 1 亿参数，另配套一个把波形与模型音频编码互相转换的音频编解码器。当前适配通过 ONNX Runtime 运行这些模型文件。ONNX Runtime 是执行已导出模型计算的运行库，SDK 推理链路无需加载 PyTorch。
 
-* 不要求显卡
-* 纯 ONNX 路线即可完成实时流式合成
-* 支持稳定的单参考音色克隆
-* 适合边缘部署、低成本部署和 CPU-only 服务
+没有独立显卡、需要本地助手回复或设备播报时，可用 `device="cpu"` 启动。流式输出表示模型逐步返回音频块，是否能跟上实时播放还取决于 CPU、参考录音长度和输入内容，需在目标机器上测量。
 
-如果你的业务优先级是：
-
-* 先在没有独显的机器上跑通实时语音
-* 更关注单位部署成本
-* 更关注单机 CPU 实时能力
-* 需要一个工程接入简单、行为稳定的单参考克隆模型
-
-那么 `moss-tts-nano-onnx` 应该是当前最值得优先试的模型。
+当前规格给出的 CPU 内存经验档位为最低 3 GB、推荐 5 GB。`auto` 和 `gpu` 也属于可接受的设备值，实际后端由运行环境选择，初始化后可通过 `engine.actual_backends` 查看。CPU 示例见后文。
 
 ## 2. 支持语言与文本风格
 
-MOSS-TTS-Nano 目前支持 20 种语言：中文、英文、德语、西班牙语、法语、日语、意大利语、匈牙利语、韩语、俄语、波斯语、阿拉伯语、波兰语、葡萄牙语、捷克语、丹麦语、瑞典语、希腊语、土耳其语。					
+上游具名列出的语言包括中文、英文、德语、西班牙语、法语、日语、意大利语、匈牙利语、韩语、俄语、波斯语、阿拉伯语、波兰语、葡萄牙语、捷克语、丹麦语、瑞典语、希腊语和土耳其语。上游标题写为 20 种语言，当前表格实际列出上述 19 种。本页保留具名名单，语言效果需结合自己的输入验证。[MOSS-TTS-Nano 官方语言表](https://github.com/OpenMOSS/MOSS-TTS-Nano#supported-languages)
 
-MOSS-TTS-Nano 更适合作为**中短文本、日常播报、助手回复、低成本实时交互**的语音生成模型。  
-在 StreamVox 当前适配中，我们建议把它理解为：
+StreamVox 当前没有为 MOSS 暴露 `language` 参数，直接填写目标语言正文。适配包含轻量字符清理和长文本分段，数字、日期、金额、缩写及单位的读法应在业务侧明确。例如希望金额 `¥12.50` 读作中文时，可以先整理成 `十二元五角`。
 
-* 主打中文场景
-* 适合清晰、直接、结构明确的输入文本
-* 更适合单说话人实时输出
-* 不以复杂多说话人、细粒度副语言控制为主
-
-对于数字、日期、金额、缩写、单位等复杂文本，仍建议在进入推理前先做文本归一化，避免模型按字面形式播报。
+助手回复和通知可按一句或一小段提交，便于确认台词与声音。长文本会自动分段，具体分段与生成上限见第 4 节。
 
 ## 3. 核心能力
 
 ### 3.1 单参考音色克隆
 
-MOSS-TTS-Nano 支持基于**一段参考音频 + 对应参考文本**快速构建角色 Prompt。  
-构建完成后，这个 Prompt 可以被反复复用，用于后续实时流式合成。
+`voice_clone` 从单条参考音频提取音色条件，让这个声音说新的 `text`。当前实现的这一模式只消费参考音频编码，`prompt_text` 可以省略，传入后也不会加入此模式的生成请求。
 
-这是它最推荐的使用方式，也是当前 StreamVox 中 CPU 路线下最实用的能力组合之一。
+参考录音可以说 `你好，欢迎使用语音服务。`，待生成文本可以是 `好的，下面我继续介绍部署流程。`。参考音频提供音色，新文本提供本次台词。录音与待生成台词可分别准备。
 
-示例：
-
-参考音频文本：
-
-```text
-你好，欢迎使用 StreamVox。今天我们来看一个轻量级实时语音模型的部署示例。
-```
-
-目标生成文本：
-
-```text
-好的，下面我将继续介绍这个模型在纯 CPU 环境下的实际表现。
-```
+`make_prompt()` 只接受一条参考音频，路径、音频数组、采样率和参考文本均使用单值。文件输入传 `audio_path`，内存输入传 `audio_data` 和明确的 `sample_rate`，两种音频来源互斥。参考音频会转换到编解码器需要的采样率和声道布局。
 
 ### 3.2 continuation 与 voice_clone 两种模式
 
-MOSS-TTS-Nano 在 StreamVox 中支持两种核心推理模式：
+`continuation` 表示在生成序列中继续产生语音。无参考录音时，它直接从目标文本生成。有参考录音时，模型将录音作为已生成的语音前缀，同时把 `prompt_text` 和目标 `text` 相接，再生成后续语音。
 
-* `voice_clone`
-  * 需要参考音频
-  * 适合零样本单参考音色克隆
-* `continuation`
-  * 可用于无参考音频的纯文本 continuation
-  * 也可用于“参考文本 + 参考音频 + 目标文本”的延续式生成
+| 模式 | 数字值 | 音频和转写要求 | 默认选择条件 |
+| --- | ---: | --- | --- |
+| `voice_clone` | `0` | 必须有参考音频，转写可省略且不参与该模式生成。 | 使用 `make_prompt()` 创建的参考音色资产时默认采用。 |
+| `continuation` | `1` | 可以只有目标文本。使用参考条件时，音频与非空 `prompt_text` 必须同时提供。 | `role_name=None` 且没有参考输入时默认采用。 |
 
-这意味着它既可以作为一个轻量克隆模型使用，也可以作为一个更基础的流式 TTS 模型使用。
+`mode` 也接受数字字符串 `"0"` 和 `"1"`。只有音频的 Prompt 切换到 `continuation` 会因缺少转写而报错，此时需要重建带准确转写的 Prompt。无参考条件时应保持 `role_name=None`，引擎才会构造临时的纯文本输入。
 
 ### 3.3 实时流式输出
 
-MOSS-TTS-Nano 在 StreamVox 当前适配中，默认就是按流式方式工作。  
-也就是说，它不是先整段生成完再一次性返回，而是会持续产出音频 chunk。
+`stream()` 返回一个需要迭代的生成器。模型生成一批音频编码后，解码器就把对应波形交给调用方，后面仍可继续生成。只调用方法并保存生成器变量时，合成尚未执行。
 
-这使它非常适合：
-
-* 实时语音助手
-* 低成本对话系统
-* 边缘设备播报
-* CPU-only 的服务端推理
+当前 MOSS 适配始终逐块输出一维 `float32` 的 NumPy 数组。配套编解码器按 48,000 Hz 工作，SDK 将其音频输出转换为单声道。播放或保存时读取 `engine.runtime.sample_rate`，让播放器和文件使用实际采样率。
 
 ### 3.4 Prompt 可复用
 
-`make_prompt(...)` 完成后，参考音频会先被编码为可复用的 Prompt 资产。  
-如果你的业务角色会被频繁复用，建议：
+`make_prompt()` 会先读取录音并运行参考音频编码器，把结果放进 Prompt。传 `role_name=prompt` 可在内存中重复使用同一份资产。默认 `persist=True` 还会写入本地角色缓存，后续使用同一模型时，可传角色名字符串读取。
 
-* 在角色创建阶段就完成 `make_prompt(...)`
-* 高频角色使用 `persist=True` 落盘缓存
-* 正式推理时直接传角色名或 Prompt 对象
-
-这样做通常能显著降低正式请求的首包压力。
+如果角色会多次发声，将 Prompt 构建放在角色创建阶段，正式请求只提交新文本。这样首个音频块前就能省去这次参考编码的计算。首次引擎初始化还包含模型加载和预热，应与正式合成耗时分别观察。
 
 ## 4. 工程侧推荐用法
 
-### 4.1 推荐：先 make_prompt，再正式 stream
+### 4.1 推荐先 make_prompt，再正式 stream
 
-对 MOSS-TTS-Nano，推荐工作流是：
+先准备清楚的单人录音，使用 `make_prompt()` 构建参考音色资产。需要复用时保留 Prompt 对象，或用 `persist=True` 保存角色。每次新请求通过 `stream()` 传入新台词，并逐块播放或完整收集。
 
-1. 先执行 `make_prompt(...)`
-2. 角色复用时直接使用缓存 Prompt
-3. 正式推理只做文本预处理、TTS 推理与流式输出
+`voice_clone` 可仅提供录音。需要做带参考的续写时，在构建 Prompt 时同步提供准确转写，并在合成时显式传 `mode="continuation"`。先分清这两种输入结构，可以避免把缺少转写的克隆资产直接用于续写。
 
-原因很简单：  
-MOSS 的参考音频编码本身就需要一定成本。如果把 prompt 构建和正式合成混在同一个请求里，首个 chunk 延迟会被明显拉长。
+### 4.2 推荐CPU 场景优先尝试
 
-### 4.2 推荐：CPU 场景优先尝试
+按 [使用文档](../usage.md) 安装 SDK 并选择 CPU 依赖后，使用 `TTSEngine(model="moss-tts-nano-onnx", device="cpu")` 初始化。通过模型名启动会按 SDK 下载规则获取模型目录，也可传入已准备好的本地模型目录。
 
-如果你的机器没有独显，或者业务希望压低 GPU 成本，可以优先尝试：
+当前 MOSS 全部模型组件使用 ONNX 链路，初始化参数 `llama_backend` 不参与设备选择。运行在 CPU 时，可以先用下方纯文本示例检查输入到文件的完整流程，再加入参考音色。
 
-```python
-engine = TTSEngine(
-    model="moss-tts-nano-onnx",
-    device="cpu",
-    verify_model_sha256=True,
-)
-```
+### 4.3 推荐中短文本优先
 
-这也是当前 release 中最推荐的 MOSS 接入方式。
+每次先提交一句或一小段，便于检查数字读法、标点停顿和角色音色。较长正文由当前模型配置按 `max_length=80`、`min_length=12` 分段，长度按分词器输出的 token 计数，token 是模型读取文本的基本单位。
 
-### 4.3 推荐：中短文本优先
+每个文本分段会重新构造请求并重置该段的音频编解码状态，生成上限为 `max_new_frames=375`。这里的帧是模型生成的音频编码时间单元。长文本跨段时，前一段生成的声音历史会结束，下一段重新使用参考条件。
 
-MOSS-TTS-Nano 更适合：
+| 当前请求参数 | 默认值 | 作用 |
+| --- | --- | --- |
+| `mode` | 随 Prompt 选择 | `voice_clone` 或 `continuation`，也可传 0、1。 |
+| `seed` | `None` | 给定整数时重置音频采样的随机数状态。省略时沿用运行时的随机状态。 |
+| `remove_meaningless_chars` | `True` | 按 MOSS 的字符范围过滤正文。 |
+| `track_performance` | `False` | 开启后记录预处理、参考条件请求构造、首包及音频块等耗时。 |
 
-* 一次一句
-* 一次一小段
-* 连续对话回复
-* 结构清晰的通知/播报类文本
-
-如果文本非常长、情绪变化复杂、需要多说话人组织，优先考虑 `S2-Pro` 或其他更重型模型会更稳。
+分段长度、最大生成帧数和采样参数由当前 YAML 配置管理。`TTSEngine.stream()` 的通用 `max_length`、`min_length` 在 MOSS 适配器中会被过滤，对本模型不生效。需要控制单次输入长度时，可在应用侧按句提交。当前默认采样采用 `fixed` 模式，`do_sample=True`、温度 0.8、`top_p=0.95`、`top_k=25`、重复惩罚 1.2。`fixed` 使用导出时固定采样参数的整帧计算图，公开请求仅通过 `seed` 重置其中的随机过程。
 
 ## 5. 不适合的场景
 
-虽然 MOSS-TTS-Nano 很适合作为 CPU 实时路线的首选，但它并不适合所有场景。  
-以下需求更建议选择其他模型：
+当前 MOSS 接口围绕一个目标声音组织请求，每份 Prompt 只接收一条录音，公开参数提供模式与随机种子控制。多角色对白需要的说话人标记入口可查看 [S2-Pro](s2-pro.md)，通过文字设计音色和自然语言控制表达的入口可查看 [VoxCPM2](voxcpm2.md)。
 
-* **多说话人对白**：更适合 `S2-Pro`
-* **复杂情绪控制 / 副语言控制**：更适合 `S2-Pro` 或 `VoxCPM2`
-* **方言克隆与音色设计**：更适合 `VoxCPM2`
-* **更强调高保真成片感**：更适合 `S2-Pro`
+选择这些接口时，先依据所需输入结构和控制方式确定模型，再用同一组台词、参考录音和目标设备比较声音及延迟。
 
 ## 6. 典型示例
 
+先按 [使用文档](../usage.md) 安装 SDK 并准备模型。下面第一个脚本还需要工作目录中存在一段自己有权使用的 `reference.wav`，项目不附带这段录音。两个脚本均使用主入口守卫启动，并在结束或异常时释放引擎。
+
 ### 6.1 voice_clone
 
+这段脚本使用录音提取音色，完整消费生成器后保存 `moss-clone.wav`。由于使用 `voice_clone`，构建 Prompt 时可以省略转写。
+
+将下面代码保存为 `moss_clone_demo.py`。
+
 ```python
+from pathlib import Path
+
+import numpy as np
+import soundfile as sf
+
 from streamvox import TTSEngine
 
 
-engine = TTSEngine(
-    model="moss-tts-nano-onnx",
-    device="cpu",
-    verify_model_sha256=True,
-)
+def main():
+    """用单条参考录音的音色合成并保存新台词。
 
-prompt = engine.make_prompt(
-    role_name="moss_voice",
-    audio_path="reference.wav",
-    prompt_text="这是参考音频的转写文本。",
-    persist=False,
-)
+    Returns:
+        无返回值，合成音频保存为 moss-clone.wav。
+    """
+    engine = TTSEngine(
+        model="moss-tts-nano-onnx",
+        device="cpu",
+        verify_model_sha256=True,
+    )
+    try:
+        prompt = engine.make_prompt(
+            role_name="moss_voice",
+            audio_path="reference.wav",
+            persist=False,
+        )
+        chunks = list(engine.stream(
+            text="好的，下面我继续介绍这个模型的部署流程。",
+            role_name=prompt,
+            mode="voice_clone",
+            track_performance=True,
+        ))
+        audio = np.concatenate(chunks) if chunks else np.empty(0, dtype=np.float32)
+        if audio.size == 0:
+            raise RuntimeError("本次合成未返回音频")
+        output = Path("moss-clone.wav")
+        sf.write(output, audio, engine.runtime.sample_rate)
+        print(output.resolve())
+    finally:
+        engine.shutdown()
 
-chunks = engine.stream(
-    text="这是一段 MOSS-TTS-Nano 的实时流式语音合成示例。",
-    role_name=prompt,
-    mode=0,
-    track_performance=True,
-)
+
+if __name__ == "__main__":
+    main()
 ```
 
 ### 6.2 continuation
 
+纯文本生成无需参考录音。在上面脚本的 `try` 内，将创建 Prompt 和 `chunks` 的语句一起替换为下面片段，输出文件名改为 `moss-text.wav`。
+
 ```python
-from streamvox import TTSEngine
-
-
-engine = TTSEngine(
-    model="moss-tts-nano-onnx",
-    device="cpu",
-    verify_model_sha256=True,
-)
-
-chunks = engine.stream(
-    text="这是一段 continuation 模式示例。",
+chunks = list(engine.stream(
+    text="这段语音只使用目标文本生成。",
     role_name=None,
-    mode=1,
+    mode="continuation",
     track_performance=True,
-)
+))
 ```
+
+需要沿着一段已有语音续写时，准备 `reference.wav` 并录下 `今天我们先介绍部署环境。`，把转写改成实际录音内容。将上面脚本创建 Prompt 和 `chunks` 的部分替换为以下片段，输出文件名改为 `moss-continuation.wav`。
+
+```python
+prompt = engine.make_prompt(
+    role_name="moss_continuation",
+    audio_path="reference.wav",
+    prompt_text="今天我们先介绍部署环境。",
+    persist=False,
+)
+chunks = list(engine.stream(
+    text="接下来，我们开始安装运行依赖。",
+    role_name=prompt,
+    mode="continuation",
+    track_performance=True,
+))
+```
+
+录音与准确转写共同提供前缀上下文，`text` 只填写后续台词。脚本保存本次生成的音频块。要边生成边播放，可将 `list(...)` 换为循环，并逐块送入相同采样率的播放器。
 
 ## 8. 参考与致谢
 
-感谢 MOSS-TTS-Nano 原始团队在轻量级实时语音生成方向上的持续研究与开源贡献。  
+OpenMOSS 团队提供了原始 MOSS-TTS-Nano 及配套音频编解码模型。上游 CPU 与 ONNX 工作流见 [官方仓库](https://github.com/OpenMOSS/MOSS-TTS-Nano)，本页说明 StreamVox 当前单参考和续写接口。

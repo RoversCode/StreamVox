@@ -15,9 +15,28 @@ import numpy as np
 import pytest
 
 from streamvox import TTSEngine
-from streamvox.models.base import BasePromptAsset, ExecutionPlan
+from streamvox.models.base import BasePromptAsset, ExecutionPlan, ModelAdapter
 from streamvox.models.registry import ModelRegistry
 from streamvox.paths import get_default_model_root, get_streamvox_home
+
+
+def test_parameter_normalization_protocol_matches_engine_call():
+    """参数归一化协议应接收引擎实际传入的关键字参数。
+
+    Returns:
+        协议能够绑定通用分段字段和模型私有字段时正常返回。
+    """
+    parameters = {
+        "max_length": None,
+        "min_length": None,
+        "remove_meaningless_chars": True,
+        "seed": 42,
+    }
+    signature = inspect.signature(ModelAdapter.normalize_synthesize_kwargs)
+
+    bound = signature.bind(object(), **parameters)
+
+    assert bound.arguments["model_kwargs"] == parameters
 
 
 @pytest.fixture
