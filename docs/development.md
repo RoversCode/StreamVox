@@ -8,7 +8,7 @@ StreamVox 2.1.2 的安装包（wheel）面向 Windows x64 / CPython 3.12，Pytho
 
 ## 仓库与贡献
 
-项目唯一源码仓库为 `RoversCode/StreamVox`，主分支为 `master`。日常开发、测试与发行都使用该仓库。贡献从 `master` 创建分支，通过 PR 审查并合并，维护者再选定已合并的提交作为发行输入。提交范围与个人配置的本机排除方式见参与贡献说明。[源码仓库](https://github.com/RoversCode/StreamVox) · [参与贡献](../CONTRIBUTING.md)
+项目唯一源码仓库为 `RoversCode/StreamVox`，保留 `dev` 和 `master` 两个分支。日常开发与文档修改提交到 `dev`，验证后从 `dev` 向 `master` 提交 PR。合并后将 `master` 快进同步回 `dev`，维护者再选择确定的 `master` 提交作为发行输入。外部贡献先进入 `dev`，具体流程和提交范围见参与贡献说明。[源码仓库](https://github.com/RoversCode/StreamVox) · [参与贡献](../CONTRIBUTING.md)
 
 ## Windows 开发环境
 
