@@ -6,6 +6,7 @@ recursive-include streamvox_runtime *.py
 recursive-include tests *.py
 recursive-include tools *.py
 include tools/breeze_reference/requirements.txt
+include docs/performance-2.0.0.json
 include docs/models/breeze-tts-2-validation.json
 recursive-include scripts *.sh *.ps1
 recursive-include docs *.md *.png *.svg
