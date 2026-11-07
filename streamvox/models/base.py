@@ -209,9 +209,15 @@ class ModelAdapter(Protocol):
 
     def normalize_synthesize_kwargs(
         self,
-        runtime: ModelRuntime,
         **model_kwargs: object,
     ) -> dict[str, object]:
+        """校验并整理引擎交给当前模型的合成参数。
+
+        Args:
+            model_kwargs: 通用分段字段与当前模型支持的私有参数。
+        Returns:
+            可交给当前适配器合成入口的参数字典。
+        """
         ...
 
     def synthesize(

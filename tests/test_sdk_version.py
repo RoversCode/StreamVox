@@ -10,10 +10,10 @@ from streamvox.version import SDK_VERSION, resolve_sdk_version
 def test_source_project_version_overrides_stale_installed_metadata():
     """源码开发时应采用当前项目版本，避免旧安装元数据污染结果。"""
     with (
-        patch("streamvox.version._read_source_project_version", return_value="2.1.1"),
+        patch("streamvox.version._read_source_project_version", return_value="2.1.2"),
         patch("importlib.metadata.version", return_value="1.2.10") as metadata,
     ):
-        assert resolve_sdk_version() == "2.1.1"
+        assert resolve_sdk_version() == "2.1.2"
 
     metadata.assert_not_called()
 
@@ -35,9 +35,9 @@ def test_missing_distribution_metadata_uses_release_version():
         patch("streamvox.version._read_source_project_version", return_value=None),
         patch("importlib.metadata.version", side_effect=importlib.metadata.PackageNotFoundError),
     ):
-        assert resolve_sdk_version() == SDK_VERSION == "2.1.1"
+        assert resolve_sdk_version() == SDK_VERSION == "2.1.2"
 
 
 def test_package_exports_current_project_version():
     """公开入口应导出与发行声明一致的版本。"""
-    assert streamvox.__version__ == resolve_sdk_version() == SDK_VERSION == "2.1.1"
+    assert streamvox.__version__ == resolve_sdk_version() == SDK_VERSION == "2.1.2"

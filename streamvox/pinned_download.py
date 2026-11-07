@@ -15,7 +15,13 @@ import requests
 from .model_bundle import is_runtime_manifest_asset
 
 
-LEGAL_ASSET_NAMES = {"LICENSE", "LICENSE.MD", "LICENSE.TXT", "NOTICE", "NOTICE.MD", "NOTICE.TXT", "COPYING", "COPYING.TXT"}
+# 模型独立许可可能与源码许可并存，固定版本下载需一并保留。
+LEGAL_ASSET_NAMES = {
+    "LICENSE", "LICENSE.MD", "LICENSE.TXT",
+    "MODEL_LICENSE", "MODEL_LICENSE.MD", "MODEL_LICENSE.TXT",
+    "NOTICE", "NOTICE.MD", "NOTICE.TXT",
+    "COPYING", "COPYING.TXT",
+}
 
 
 def download_pinned_snapshot(

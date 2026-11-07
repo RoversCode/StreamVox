@@ -81,9 +81,23 @@ def test_manifest_mismatch_stops_before_asset_download(tmp_path, monkeypatch):
         download_pinned_snapshot(repository='fake/repo', revision='a'*40, expected_manifest_sha256='b'*64, cache_dir=tmp_path, report=lambda *_: None, check_cancelled=lambda: None)
 
 
-def test_pinned_snapshot_keeps_legal_files_from_the_same_commit(tmp_path, monkeypatch):
-    """许可文本按固定提交校验保存，不依赖可能已过时的运行清单文档哈希。"""
-    files = {'ckpt/weights.bin': b'weights', 'LICENSE': b'model license', 'NOTICE.md': b'original authors'}
+@pytest.mark.parametrize("model_license_name", ["MODEL_LICENSE", "MODEL_LICENSE.md", "MODEL_LICENSE.txt"])
+def test_pinned_snapshot_keeps_legal_files_from_the_same_commit(tmp_path, monkeypatch, model_license_name):
+    """按固定提交保存源码许可、模型独立许可和归属文本。
+
+    Args:
+        tmp_path: 当前用例的隔离下载缓存。
+        monkeypatch: 替换 HTTP 会话的测试工具。
+        model_license_name: 模型独立许可使用的文件名。
+    Returns:
+        同一提交中的运行资产和法律文件全部保存时正常返回。
+    """
+    files = {
+        'ckpt/weights.bin': b'weights',
+        'LICENSE': b'source license',
+        'NOTICE.md': b'original authors',
+        model_license_name: b'independent model license',
+    }
     manifest = json.dumps({'model': 'fake', 'assets': [
         {'path': 'ckpt/weights.bin', 'sha256': hashlib.sha256(files['ckpt/weights.bin']).hexdigest()},
         {'path': 'LICENSE', 'sha256': '0' * 64},

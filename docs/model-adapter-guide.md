@@ -2,151 +2,126 @@
 
 [返回 README](../README.md) · [使用文档](usage.md) · [构建与验证](development.md) · [模型许可](model-licenses.md)
 
-本文面向准备把一个新的 TTS 模型接入 StreamVox 的开发者。目标是让新模型完成适配后，能像现有 `qwen3-tts-clone-0.6b-gguf`、`qwen3-tts-clone-1.7b-gguf`、`s2-pro-4b-gguf`、`voxcpm2-gguf` 一样，通过统一的 `TTSEngine` 初始化、构建 prompt、流式合成、缓存角色、下载模型和发布 wheel。
+把新的文本转语音模型接入 StreamVox，需要让引擎能够找到它、加载权重、准备参考音色并返回音频。本指南从 `TTSEngine` 的真实调用顺序出发，说明每个接口的输入、输出和实现位置。
+
+模型目录（bundle）是一套可加载的模型文件，根目录的 `manifest.json` 标明模型名和文件摘要，`ckpt/` 保存权重、分词器等运行资产。参考音色资产（Prompt）是模型从参考音频提取出的可复用资料，例如说话人向量或音频编码。它通过模型自己的格式保存到角色缓存。安装包（wheel）提供 SDK 源码、配置和原生运行库，模型目录单独分发。
+
+下文用假设的 `my-tts-1b-gguf` 演示命名和接口。示例中的文件名、采样率与参数范围需要按目标模型确定。实际模型的编码器、生成器和音频解码器需要开发者接入，本文的接口片段分别展示通用连接部分。
+
+GGUF 是 llama.cpp 读取的模型权重格式，ONNX 文件保存 ONNX Runtime 可执行的模型计算图。同一 TTS 模型可以把生成组件交给 llama.cpp，把参考编码或波形解码组件交给 ONNX Runtime。适配器需要为这些组件分别保存设备意图，运行时再选择实际后端。
 
 ## 职责拆分设计
 
-新模型适配只需要新增或修改少量明确职责的文件，不要把模型加载、prompt 处理、文本预处理、设备解析和注册逻辑堆到一个文件里。推荐拆分如下：
+先区分描述模型的代码和持有模型的对象。`ModelAdapter` 与 `ModelRuntime` 都定义在 `models/base.py`，两者是 Python `Protocol`，用来表达需要有哪些属性和方法。开发者编写的适配器类实现前者，真正持有权重和后端资源的运行时对象满足后者。现有模型通过普通类实现这些接口，无需继承协议类。[接口定义](../streamvox/models/base.py)
+
+建议按下列职责建立文件。可选目录仅在模型确有相应逻辑时建立。
 
 ```text
 streamvox/models/<model_key>/
-  __init__.py            # 只导出 adapter 类，供默认注册入口导入。
-  spec.py                # 只描述模型事实：模型名、尺寸、硬件档位、权重子目录。
-  adapter.py             # 连接 TTSEngine 与模型 runtime，负责参数归一化和 prompt 入口。
-  runtime.py             # 负责加载权重、持有后端对象、创建 session、关闭资源。
-  assets.py              # 可选；复杂模型用它集中解析 ckpt 文件、资产 manifest 或后端配置。
-  text/
-    __init__.py          # 可选；导出文本预处理配置和 preprocess_text。
-    preprocess_text.py   # 可选；模型专属文本清洗、分段和特殊 token 保护。
-  schema/
-    __init__.py          # 可选；导出模型内部结构。
-    *.py                 # 可选；decoder 协议、record、item 等结构体。
-  worker/
-    __init__.py          # 可选；子进程 decoder 或后台 worker。
-    *.py                 # 可选；跨进程运行的代码必须独立成模块，避免 pickle/import 问题。
+  __init__.py            # 导出适配器，供注册入口使用
+  spec.py                # 保存模型名、规格和硬件建议等稳定事实
+  adapter.py             # 处理公开参数、设备意图、Prompt 和引擎调用
+  runtime.py             # 加载权重、执行推理、管理会话与资源释放
+  assets.py              # 可选，解析复杂的模型文件组合和资产元数据
+  prompt.py              # 可选，定义 Prompt 数据与序列化规则
+  text/                  # 可选，维护模型专属的文本清理与分段规则
+  schema/                # 可选，维护多个模块共用的结构和消息协议
+  worker/                # 可选，放置能被子进程独立导入的工作代码
 
-streamvox/models/config/<model_key>.yaml  # 模型 runtime 默认参数和文件名映射。
-streamvox/models/builtin_models.py        # 默认模型注册实现。
-streamvox/manifests.py                    # 自动下载时的 ModelScope 仓库映射。
-streamvox/release_audit.py                # 检查源码发行包的模块、资源与许可文件。
-pyproject.toml                            # 声明依赖、源码包发现和运行资源规则。
-tests/test_<model_key>_*.py               # adapter、runtime 初始化、prompt 缓存和 stream 契约测试。
+streamvox/models/config/<model_key>.yaml  # 配置默认值与文件名
+streamvox/models/builtin_models.py        # 登记内置模型
+streamvox/manifests.py                    # 映射自动下载仓库
+pyproject.toml                            # 声明依赖和安装包资源
+MANIFEST.in                               # 声明源码归档内容
+tests/test_<model_key>_*.py               # 检查模型接入行为
 ```
 
-这种拆分足够表达 StreamVox 的核心边界：
+`TTSEngine` 负责选择模型、取得模型目录、管理角色缓存和返回音频。`ModelRegistry` 保存模型名到适配器实例的映射。适配器把通用输入转成目标模型的语义，运行时负责具体后端计算。`PromptCache` 通过适配器把私有 Prompt 转成统一的 `SerializedPromptAsset` 后存盘，所以缓存层无需了解说话人向量或模型缓存的内部结构。
 
-- `TTSEngine` 是统一产品入口，负责下载、本地 bundle 解析、prompt 缓存、设备选择和统一流式 API。
-- `ModelRegistry` 只保存 `model_name -> adapter` 的映射，不关心模型实现细节。
-- `ModelAdapter` 是模型接入层，负责把通用 API 翻译成模型私有语义。
-- `ModelRuntime` 是模型运行层，负责加载本地权重、持有后端对象和创建合成 session。
-- `PromptCache` 只认识 `SerializedPromptAsset`，不理解任何模型内部结构。
-
-如果一个新模型很简单，可以没有 `assets.py`、`schema/`、`worker/`、`text/`。但只要一个文件承担了两个以上职责，就应该拆开；反过来，如果某个函数只是校验参数后完整透传给另一个私有函数，应合并，避免为了拆分而制造空壳调用链。
+同一系列多个尺寸可以共享适配器基类和运行时，由 `spec.py` 区分规格。复杂的资产解析、文本规则和子进程协议拆到各自模块，简单的参数校验与执行代码可放在同一方法中。保持注册入口可轻量导入，重型后端延迟到 `load_runtime()` 加载。
 
 ## 总体接入流程
 
-1. 选定稳定的 `model_name`，例如 `my-tts-1b-gguf`。这个名字会同时出现在 registry、默认模型目录、manifest、prompt cache 子目录和下载映射里。
-2. 新建 `streamvox/models/<model_key>/spec.py`，声明不可变模型规格和硬件档位。
-3. 新建 `streamvox/models/config/<model_key>.yaml`，声明 sample rate、默认上下文、权重文件名、采样参数和后端默认值。
-4. 新建 `runtime.py`，实现模型加载、bundle 校验、`runtime_info`、`sample_rate`、`create_session()` 和 `shutdown()`。
-5. 新建 `adapter.py`，实现 `ModelAdapter` 约定：加载 runtime、解析 device、构建 prompt、序列化 prompt、归一化合成参数、调用 session 合成。
-6. 在模型包 `__init__.py` 导出 adapter，在 `streamvox/models/builtin_models.py` 注册 adapter。
-7. 准备模型 bundle 的 `manifest.json`，并把运行期资产放到 `ckpt/` 下。
-8. 如果要支持 `TTSEngine(model="<model_name>")` 自动下载，在 `streamvox/manifests.py` 增加 ModelScope 仓库映射。
-9. 确认新模型源码、配置与必要运行资产被 wheel 和 sdist 收集，保留适用的第三方声明。
-10. 写测试覆盖本地 bundle 初始化、prompt 缓存、参数归一化、stream 输出、无 prompt 模式等关键路径。
+1. 确定模型实际需要的输入和资产。列明参考音频数量、参考文本要求、输出采样率、支持的后端，以及可否在没有参考音频时生成。
+2. 选定稳定的 `model_name`，例如 `my-tts-1b-gguf`。注册表、模型清单、下载映射、默认模型目录与角色缓存目录都使用这个名字。
+3. 编写规格和配置，再准备含完整运行资产的模型目录。离线转换工具与 SDK 运行环境分别准备依赖。
+4. 实现运行时，先校验模型目录和配置，再加载后端，提供运行信息并管理资源释放。
+5. 实现适配器，把引擎请求传给运行时，完成设备计划、Prompt 编码、序列化和合成参数校验。
+6. 先用独立 `ModelRegistry` 和本地模型目录，从 `TTSEngine` 入口验证接入。通过后再加入内置注册入口。
+7. 需要按模型名下载时，登记 ModelScope 映射并验证远端清单。需要发行时，检查源码、配置、依赖和许可进入相应归档。
+8. 分别完成接口测试、真实合成、数值对照、试听和资源测量，保存各自的输入与结论范围。
 
 ## 统一入口如何调用新模型
 
-`TTSEngine` 的初始化链路是：
+初始化先解决“加载哪个模型”和“文件在哪里”，再确定各后端的执行位置。
 
 ```text
-TTSEngine(model=...)
-  -> 判断 model 是本地目录还是模型名
-  -> 本地目录读取 manifest.json 的 model 字段
-  -> 模型名检查 default_registry 是否支持
-  -> 模型名缺少本地缓存时调用 streamvox.download.download_model
-  -> registry.get(model_name) 拿到 adapter
-  -> adapter.resolve_execution_plan(device)
+TTSEngine(model=..., device=..., llama_backend=..., onnx_provider=...)
+  -> model 看起来像路径时，从目录 manifest.json 读取 model 字段
+  -> 按模型名初始化时，确认注册表支持，再查默认模型缓存
+  -> 默认模型目录没有 manifest.json 时，调用 download_model()
+  -> 从注册表取得对应适配器，并创建该模型的 PromptCache
+  -> 读取适配器的硬件建议，输出资源提示
+  -> adapter.resolve_execution_plan(device, llama_backend=...)
+  -> 将显式 onnx_provider 与 llama_backend 写入相应执行目标
   -> adapter.load_runtime(RuntimeRequest(...))
-  -> 如 runtime 实现了 warmup_for_init()，则立即执行初始化预热
+  -> 运行时提供 warmup_for_init() 时执行初始化预热
+  -> 保存 runtime_info，并核对显式请求的实际后端
 ```
 
-合成链路是：
+`model` 公开参数使用字符串。本地路径中的模型名也必须已经注册。默认缓存已有清单时，引擎先核对清单模型名，后续资产存在性与摘要校验由运行时完成。默认数据根目录在 Windows 为 `%APPDATA%/StreamVox`，其他系统为 `~/.streamvox`，`STREAMVOX_HOME` 可覆盖它。模型位于根目录下的 `ckpts/<model_name>/`，角色缓存位于 `prompts/<model_name>/`。[引擎入口](../streamvox/engine.py) · [目录解析](../streamvox/paths.py)
+
+合成时，引擎先取得 Prompt，然后才进入参数归一化和推理。
 
 ```text
-TTSEngine.stream(...)
-  -> 解析 role_name 或 BasePromptAsset
-  -> 如未命中缓存，根据 prompt_audio_* 调 adapter.make_prompt(...)
-  -> adapter.normalize_synthesize_kwargs(...)
-  -> adapter.synthesize(runtime, text, prompt, **normalized_kwargs)
-  -> 逐块产出 float32 PCM ndarray
+TTSEngine.stream(text, role_name=..., **model_kwargs)
+  -> 直接传 BasePromptAsset 时，检查其模型名并复用
+  -> 传角色名时，从该模型的角色缓存恢复 Prompt
+  -> 尚无 Prompt 且提供参考音频时，调用 adapter.make_prompt()
+  -> role_name=None 且未提供参考音频时，尝试 adapter.make_default_prompt()
+  -> adapter.normalize_synthesize_kwargs(...) 校验模型参数
+  -> adapter.synthesize(runtime, text, prompt, track_performance=..., **参数)
+  -> 将每块音频转成 numpy.float32，按原顺序返回
+  -> 消费结束、异常或关闭生成器时，关闭底层合成生成器
 ```
 
-因此，新模型接入时不要修改 `TTSEngine`。如果发现必须改引擎层才能支持某个模型，优先判断是不是 adapter 没有正确表达模型能力。只有当所有模型都需要的新公共能力出现时，才应该扩展 `TTSEngine`。
+一块音频（chunk）是生成器一次返回的波形数组。它的大小由模型生成和解码策略决定。引擎将采样值转换为 `float32`，即 32 位浮点数，保留块的内容、形状和顺序，采样率来自 `runtime.sample_rate`。适配器与运行时须共同保证自己的音频布局和连续性。当前内置 TTS 模型使用单声道波形，调用方可顺序播放，或连接各块后写 WAV。[流式契约测试](../tests/test_open_source_runtime.py)
+
+新增模型的差异应先在适配器和运行时表达。涉及所有模型共同需要的能力时，再评估是否扩展引擎公开接口。
 
 ## 1. 定义模型规格
 
-`spec.py` 只保存稳定的模型事实，不加载任何权重，也不 import 重型后端。现有 `qwen3` 用一个 runtime 支持两个尺寸，所以把尺寸、权重子目录和硬件档位放进 spec；`s2_pro` 和 `voxcpm2` 只有一个规格，也仍然使用 spec，避免硬编码散落在 adapter/runtime 中。
+`spec.py` 保存稳定事实，供适配器、运行时和日志引用。下面示例集中保存模型名和适配器名，避免同一名字在多个文件中逐渐分叉。
 
 ```python
 # filepath: streamvox/models/my_tts/spec.py
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class MyTTSModelSpec:
-    """
-    MyTTS 模型规格。
+    """保存模型接入时共享的固定标识。
 
     参数:
-        model_name: StreamVox 对外暴露的模型名，也对应默认模型缓存目录名。
-        adapter_name: 当前 adapter 类名，用于 runtime_info 和 manifest 追踪。
-        parameter_billion: 参数量估算值，用于硬件提示。
-        hardware_profile_id: 硬件档位标识，建议包含尺寸、量化和后端关键信息。
-        min_vram_gb: 最低显存建议。
-        recommended_vram_gb: 推荐显存建议。
-        min_ram_gb: 最低内存建议。
-        recommended_ram_gb: 推荐内存建议。
-        notes: 展示给用户和日志的资源说明。
-
-    返回:
-        该类只作为不可变配置容器，不提供运行时返回值。
-
-    边界异常:
-        dataclass 本身不做额外校验；非法字段会在 adapter/runtime 使用时暴露。
+        model_name: 注册表、清单与缓存共同使用的模型名。
+        adapter_name: 运行信息和清单使用的适配器名。
     """
 
     model_name: str
     adapter_name: str
-    parameter_billion: float
-    hardware_profile_id: str
-    min_vram_gb: float
-    recommended_vram_gb: float
-    min_ram_gb: float
-    recommended_ram_gb: float
-    notes: str
 
 
-# 关键常量只描述模型事实，避免 runtime 和 adapter 重复写同一份模型名。
 MY_TTS_1B_SPEC = MyTTSModelSpec(
     model_name="my-tts-1b-gguf",
     adapter_name="MyTTS1BGGUFAdapter",
-    parameter_billion=1.0,
-    hardware_profile_id="my-tts-1b-q8-fp16",
-    min_vram_gb=3.0,
-    recommended_vram_gb=4.0,
-    min_ram_gb=4.0,
-    recommended_ram_gb=6.0,
-    notes="MyTTS 1B GGUF + ONNX FP16 的经验档位。",
 )
 ```
 
+如果多个规格共享运行时，可在规格中增加权重子目录等差异。硬件建议通过 `get_hardware_profile()` 返回 `ModelFootprintProfile`，包括档位标识、参数量、量化描述、最低和推荐内存与显存、测量说明。缺少可靠资源数据时可返回 `None`。引擎资源体检只输出建议，后端能否运行仍由实际加载决定。[Qwen3 规格示例](../streamvox/models/qwen3/spec.py) · [硬件结构](../streamvox/hardware.py)
+
 ## 2. 编写模型配置
 
-配置文件放在 `streamvox/models/config/`，由 runtime 读取。推荐把“用户可调默认值”和“模型资产文件名”都放进 yaml，避免文件名硬编码在多个类里。
+配置文件保存默认值，运行时负责读取并传给真正消费它们的后端。仅增加 YAML 字段还不会改变推理。以下数值为假设模型的示例配置。
 
 ```yaml
 # filepath: streamvox/models/config/my_tts.yaml
@@ -172,26 +147,28 @@ paths:
   tokenizer_filename: tokenizer.json
 ```
 
-配置读取建议遵守三个规则：
+`sample_rate` 表示每秒输出多少个音频采样点。`n_ctx` 表示模型单次推理可容纳的上下文位置数，包含哪些参考、文本或生成位置由模型实现决定。上下文越长，通常需要更大的模型缓存。`TTSEngine` 对显式 `n_ctx` 只要求为整数并排除布尔值，边界由各模型运行时判断。未传时，`RuntimeRequest.n_ctx` 为 `None`，由模型使用自己的默认值。
 
-- `default_n_ctx` 是未传 `TTSEngine(..., n_ctx=...)` 时的默认上下文。
-- `min_n_ctx` 和 `max_n_ctx` 是模型能力边界，用户显式传入的 `n_ctx` 应在 runtime 里裁剪或拒绝，并打印清晰日志。
-- `paths` 只描述 bundle 内的相对文件名；完整路径由 `model_dir / "ckpt" / filename` 组合。
+模型应明确超界时的行为。Qwen3 按配置最小值和最大值裁剪并记录实际值，Breeze 对非法值和请求超出容量报错，VoxCPM2 使用自己的配置与加载路径。新模型需要根据后端能力选择并测试规则，避免把一种模型的上下文约束当成全局约束。[Qwen3 上下文处理](../streamvox/models/qwen3/runtime.py) · [Breeze 上下文处理](../streamvox/models/breeze/runtime.py)
+
+`max_length` 和 `min_length` 控制文本分段与短段合并，它们与模型缓存容量分别处理。`llama_n_gpu_layers` 描述模型给 llama.cpp 的层卸载配置，只有运行时读取后才生效。`decoder_start_method` 在使用独立解码进程时决定进程启动方式，Windows 工作进程应使用可独立导入的模块。`paths` 保存模型目录内的相对文件名，由运行时与 `model_dir / "ckpt"` 组合。
 
 ## 3. 准备模型 bundle 和 manifest
 
-StreamVox 的本地模型目录必须包含 `manifest.json`。标准目录如下：
+一个标准模型目录可以包含如下文件。
 
 ```text
 ckpts/my-tts-1b-gguf/
   manifest.json
+  LICENSE
+  NOTICE
   ckpt/
     my_tts.q8_0.gguf
     my_tts_decoder.fp16.onnx
     tokenizer.json
 ```
 
-`manifest.json` 至少需要包含：
+清单里的 `model` 选择适配器，`assets` 列出模型文件与各自的 SHA256。SHA256 用于核对文件内容是否与清单一致。下面的摘要是占位内容，实际应由工具读取完整文件生成。
 
 ```json
 {
@@ -199,950 +176,407 @@ ckpts/my-tts-1b-gguf/
   "sources": ["local"],
   "adapter": "MyTTS1BGGUFAdapter",
   "assets": [
-    {
-      "path": "ckpt/my_tts.q8_0.gguf",
-      "sha256": "<64位sha256>"
-    },
-    {
-      "path": "ckpt/my_tts_decoder.fp16.onnx",
-      "sha256": "<64位sha256>"
-    },
-    {
-      "path": "ckpt/tokenizer.json",
-      "sha256": "<64位sha256>"
-    }
+    {"path": "ckpt/my_tts.q8_0.gguf", "sha256": "<64位sha256>"},
+    {"path": "ckpt/my_tts_decoder.fp16.onnx", "sha256": "<64位sha256>"},
+    {"path": "ckpt/tokenizer.json", "sha256": "<64位sha256>"}
   ]
 }
 ```
 
-重要约束：
-
-- `manifest.model` 必须和 adapter 的 `model_name` 完全一致。
-- 运行期资产应该放在 `ckpt/` 下；当前 `validate_local_bundle` 只对 `ckpt/` 下的资产做启动前存在性和 sha256 校验。
-- `README.md`、`LICENSE`、`NOTICE`、`configuration.json` 这类仓库元信息不会阻断 runtime 启动。
-- 自动下载链路会先校验远端 manifest，再把运行期资产复制到默认缓存目录，最后重写本地 manifest。
-
-生成本地 manifest 可以使用项目脚本：
+准备好文件后，在仓库根目录生成本地清单。
 
 ```powershell
-uv run python -m streamvox.model_bundle --model my-tts-1b-gguf --root-dir ckpts/my-tts-1b-gguf --asset ckpts/my-tts-1b-gguf/ckpt/my_tts.q8_0.gguf --asset ckpts/my-tts-1b-gguf/ckpt/my_tts_decoder.fp16.onnx --asset ckpts/my-tts-1b-gguf/ckpt/tokenizer.json --source local --adapter MyTTS1BGGUFAdapter
+uv run --no-sync python -m streamvox.model_bundle --model my-tts-1b-gguf --root-dir ckpts/my-tts-1b-gguf --asset ckpts/my-tts-1b-gguf/ckpt/my_tts.q8_0.gguf --asset ckpts/my-tts-1b-gguf/ckpt/my_tts_decoder.fp16.onnx --asset ckpts/my-tts-1b-gguf/ckpt/tokenizer.json --source local --adapter MyTTS1BGGUFAdapter
 ```
+
+运行时应在加载后端前调用 `validate_local_bundle(model_dir, model_name, verify_model_sha256=...)`。该函数核对清单中的模型名，并检查清单列出的 `ckpt/` 文件。默认还计算文件 SHA256，关闭摘要校验后仍检查文件存在。
+
+当前校验只处理清单中的 `ckpt/` 路径，运行时还须检查自己必需的文件是否完整列出、格式和维度是否可用。ONNX 外部参数、嵌入表和分词器等实际读取的文件也应列入清单。根目录的 `README.md`、`LICENSE`、`NOTICE` 和 `configuration.json` 属于仓库资料，启动校验会跳过这些文件，模型分发仍须保留适用许可。[模型目录实现](../streamvox/model_bundle.py)
+
+清单的 `adapter` 字段用于描述来源，当前引擎以 `model` 查注册表。`sources=["local"]` 可以被 ModelScope 下载入口接受。最新快照下载会生成本地清单并补充下载来源，固定版本下载保留原始清单，具体流程见第 10 节。
 
 ## 4. 实现 Runtime
 
-Runtime 是真正持有模型后端的对象。它应该满足 `streamvox/models/base.py` 中 `ModelRuntime` 的协议：
+运行时在引擎初始化期间创建，持有模型权重和长生命周期资源。`ModelRuntime` 协议要求以下成员。
 
-- `model_name: str`
-- `sample_rate: int`
-- `runtime_info: RuntimeInfo`
-- `shutdown() -> None`
+| 成员 | 运行时需要提供的内容 |
+| --- | --- |
+| `model_name: str` | 当前加载的注册模型名 |
+| `sample_rate: int` | 合成输出采样率 |
+| `runtime_info: RuntimeInfo` | 模型、适配器、模型目录加载状态、资产数量与字符串元数据 |
+| `shutdown() -> None` | 释放原生对象、会话、线程和工作进程 |
 
-此外，runtime 现在还可以选择实现一个约定式初始化预热钩子：
+`RuntimeInfo` 的构造字段为 `model`、`adapter`、`bundle_loaded`、`asset_count` 和 `metadata`。分别填写模型名、适配器名、模型目录加载状态、已校验运行资产数量，以及需要公开的字符串配置资料。
 
-- `warmup_for_init() -> None`
+`RuntimeRequest` 是适配器收到的初始化请求，字段需要有明确去向。
 
-这个钩子不是 `ModelAdapter` 的公开契约，也不要求所有模型都实现。`TTSEngine` 会在 `adapter.load_runtime(...)` 成功返回后，通过 `getattr(runtime, "warmup_for_init", None)` 检查并调用它。设计约束如下：
+| 字段 | 实现时的处理 |
+| --- | --- |
+| `model_dir: Path` | 作为模型目录根路径，读取清单与 `ckpt/` 资产 |
+| `device: str` | 保留原始设备意图，用于诊断或模型自己的解析 |
+| `n_ctx: int \| None` | 用显式值覆盖默认值，并按本模型规则校验 |
+| `verify_model_sha256: bool` | 传给 `validate_local_bundle` |
+| `execution_plan: ExecutionPlan \| None` | 分别解析本模型实际使用的后端类别 |
+| `text_preprocess_config: TextPreprocessConfig \| None` | 传给本模型的文本处理路径 |
 
-- 预热应该是 runtime 内部行为，不新增用户开关，不暴露到公开 API。
-- 预热失败必须直接抛出异常，终止 `TTSEngine` 初始化；不要把“权重加载成功但关键链路未热起”误记成初始化成功。
-- runtime 内部应自行保证幂等，例如用 `_init_warmed` 标记避免重复调用。
-- 预热只负责把 ONNX、GGUF、decoder worker 等关键路径各走一遍最小合法输入，不应污染真实请求状态；如果预热会写入 KV cache、decoder state 或上下文缓存，必须在结束前显式清理。
-
-推荐 runtime 做这些事情：
-
-- 读取 yaml 配置。
-- 解析 `RuntimeRequest.execution_plan` 中的 backend 意图。
-- 调用 `validate_local_bundle(model_dir, model_name, verify_model_sha256=...)` 校验本地 bundle。
-- 解析 `ckpt/` 下的模型文件路径。
-- 加载 GGUF、ONNX、Torch 或其它后端对象。
-- 如模型存在明显的首轮初始化抖动，实现 `warmup_for_init()`，在 runtime 内预热关键推理链路。
-- 暴露 `create_session()`，让每次合成有独立的短生命周期状态。
-- `shutdown()` 幂等关闭 native 资源、子进程和 worker。
+适配器的 `load_runtime()` 应把这些输入传给对应运行时。下面以已有 Qwen3 实现展示完整的请求传递，方法位于适配器类中。
 
 ```python
-# filepath: streamvox/models/my_tts/runtime.py
-from __future__ import annotations
-
-from dataclasses import dataclass
+# filepath: streamvox/models/qwen3/adapter.py
 from pathlib import Path
-from typing import Iterable
 
-import numpy as np
-import yaml
-
-from ...model_bundle import validate_local_bundle
-from ..base import BasePromptAsset, ExecutionPlan, RuntimeInfo, SerializedPromptAsset
-from .spec import MY_TTS_1B_SPEC, MyTTSModelSpec
+from ..base import RuntimeRequest
 
 
-CONFIG_PATH = Path(__file__).resolve().parents[1] / "config" / "my_tts.yaml"
-
-
-@dataclass(slots=True)
-class MyTTSConfig:
-    """
-    MyTTS runtime 配置。
+def load_runtime(self, request: RuntimeRequest) -> "Qwen3Runtime":
+    """按引擎请求创建当前规格的运行时。
 
     参数:
-        sample_rate: 输出音频采样率。
-        n_ctx: 当前 runtime 使用的上下文窗口。
-        min_n_ctx: 允许的最小上下文窗口。
-        max_n_ctx: 允许的最大上下文窗口。
-        max_length: 文本预处理默认最大分段长度。
-        min_length: 文本预处理默认最小合并长度。
-        model_filename: 主模型权重文件名。
-        decoder_filename: decoder 权重文件名。
-        tokenizer_filename: tokenizer 文件名。
-
+        request: 模型目录、设备计划、上下文与文本配置。
     返回:
-        配置对象只承载 runtime 初始化需要的默认值。
-
-    边界异常:
-        字段类型转换失败会在配置加载阶段抛出异常，避免后端加载到一半才失败。
+        已加载的 Qwen3 运行时。
     """
+    from .runtime import Qwen3Runtime
 
-    sample_rate: int = 24000
-    n_ctx: int = 4096
-    min_n_ctx: int = 2048
-    max_n_ctx: int = 32768
-    max_length: int = 300
-    min_length: int = 30
-    model_filename: str = "my_tts.q8_0.gguf"
-    decoder_filename: str = "my_tts_decoder.fp16.onnx"
-    tokenizer_filename: str = "tokenizer.json"
+    return Qwen3Runtime(
+        model_dir=Path(request.model_dir),
+        model_spec=self.spec,
+        device=request.device,
+        n_ctx=request.n_ctx,
+        verify_model_sha256=request.verify_model_sha256,
+        execution_plan=request.execution_plan,
+        text_preprocess_config=request.text_preprocess_config,
+    )
+```
+
+运行时初始化按轻量输入到昂贵资源的顺序进行。先读配置、检查模型目录和执行计划，再加载权重、创建后端会话，最后填充 `RuntimeInfo`。初始化失败时，需要释放此前已创建的资源。`RuntimeInfo.metadata` 的键和值均使用字符串，适合记录模型目录、有效 `n_ctx`、后端和关键资产版本。
+
+`create_session()` 是多种内置模型分离单次请求状态的方法，协议只要求上表的公共成员。Breeze 直接在运行时中串行执行请求。选择会话结构时，权重可长期复用，采样状态、生成缓存、解码历史和取消状态应按请求隔离。多个会话共享可变后端时，还需确定串行或加锁规则。[Qwen3 运行时](../streamvox/models/qwen3/runtime.py) · [Breeze 运行时](../streamvox/models/breeze/runtime.py)
+
+### 初始化预热与关闭
+
+运行时可以实现内部约定 `warmup_for_init() -> None`。引擎会在 `load_runtime()` 成功后检查它是否可调用，存在时立即执行。预热把常用的会话创建、工作进程启动或最小推理移到初始化阶段。失败会传播给调用方，初始化随之失败。
+
+预热应使用最小合法输入，并在完成或失败后清理请求缓存。实现需要保证重复调用不会重复污染状态。Qwen3、VoxCPM2、MOSS-TTS-Nano 和 Breeze 的具体预热范围不同，可从最接近目标模型的运行时查看。
+
+预热异常发生在运行时已经加载之后，此时引擎构造尚未返回，调用方还拿不到引擎对象。预热实现需要在失败路径调用自身的 `shutdown()`，释放已经加载的权重、会话、线程和工作进程，再继续抛出原始异常。当前引擎将预热异常直接向上传播，这条清理路径由运行时负责。
+
+`shutdown()` 应允许重复调用，并清理部分初始化状态。用户可能在失败处理或提前结束请求后调用它。合成生成器自身也需要在 `finally` 中等待在途任务、关闭请求资源和清理缓存，让引擎的生成器关闭操作能到达实际后端。
+
+### 实际后端的可见信息
+
+`ExecutionPlan` 保存请求，实际后端由运行时加载结果确定。引擎的 `actual_backends` 从运行时或其 `resolved_device` 读取 `gguf_backend`，再读取 `onnx_backend` 或 `decoder_backend`，并遍历模型对象中可发现的 ONNX 会话以列出提供程序。DirectML 的内部 `dml` 名称会转换为公开 `directml`。
+
+新运行时应按现有命名公开实际后端，混合执行的 CPU 辅助会话也应准确显示。显式选择的后端一旦与已报告的实际后端不符，引擎会释放运行时并报错。目标机器能否加载该后端仍须在真实初始化与推理中验证。[后端核对实现](../streamvox/engine.py) · [显式后端测试](../tests/test_explicit_backend.py)
+
+## 5. 实现 Adapter
+
+适配器是引擎认识模型的入口。需要提供下列属性和方法，名称及参数应与当前引擎一致。
+
+| 接口 | 引擎如何使用 |
+| --- | --- |
+| `model_name: str` | 注册、校验模型归属和隔离缓存 |
+| `load_runtime(request)` | 加载模型，返回满足 `ModelRuntime` 的对象 |
+| `get_text_preprocess_config()` | 返回 `TextPreprocessConfig` 或 `None` |
+| `get_hardware_profile()` | 返回 `ModelFootprintProfile` 或 `None` |
+| `resolve_execution_plan(device, llama_backend=None)` | 返回本模型各后端类别的设备意图 |
+| `make_prompt(runtime, role_name, sample_rate, audio_path=None, audio_data=None, prompt_text=None)` | 从单条或多条参考输入构建模型自己的 `BasePromptAsset` 子类 |
+| `serialize_prompt_asset(asset)` | 返回缓存可保存的 `SerializedPromptAsset` |
+| `deserialize_prompt_asset(payload)` | 恢复可直接合成的私有 Prompt |
+| `normalize_synthesize_kwargs(**model_kwargs)` | 校验并返回本模型接受的合成参数字典 |
+| `synthesize(runtime, text, prompt, stream=True, **model_kwargs)` | 返回逐块生成音频的可迭代对象 |
+
+协议还声明 `validate_make_prompt_args(...)`，其关键字参数为 `role_name`、`audio_path`、`audio_data`、`sample_rate` 和 `prompt_text`。引擎会执行自己的通用校验，当前没有单独调用这个协议方法。部分适配器提供该方法并从 `make_prompt()` 调用，其他适配器直接在 `make_prompt()` 内校验。新实现若需完整满足静态协议，可提供该方法并让模型入口复用它，确保调用路径实际执行了校验。
+
+### 把设备意图交给各后端
+
+`device` 提供默认位置和设备编号。`auto` 允许运行时选择，`cpu` 请求处理器，`gpu` 等价于首块显卡，`gpu:N` 指定显卡编号。执行计划用 `llama`、`onnx` 等类别区分模型中的后端组件，`ExecutionTarget` 保存 `mode`、`device_index` 和可选 `backend_preference`。
+
+下面是同时使用 llama.cpp 和 ONNX 的模型可采用的解析片段，放入适配器类。纯 ONNX 模型只声明 `onnx` 目标。
+
+```python
+# filepath: streamvox/models/my_tts/adapter.py
+from ..base import ExecutionPlan, ExecutionTarget
+from ..llama_backend import normalize_explicit_llama_backend
+
+
+def resolve_execution_plan(
+    self,
+    device: str,
+    llama_backend: str | None = None,
+) -> ExecutionPlan:
+    """为生成模型与音频组件保存设备请求。
+
+    参数:
+        device: 自动、处理器或显卡设备字符串。
+        llama_backend: 显式 llama.cpp 后端，空值保留自动选择。
+    返回:
+        分别包含 llama 与 ONNX 目标的执行计划。
+    """
+    backend = normalize_explicit_llama_backend(llama_backend)
+    if not isinstance(device, str):
+        raise TypeError("device must be a string")
+    normalized = device.strip().lower()
+    index = None
+    if normalized in {"auto", "cpu"}:
+        mode = normalized
+    elif normalized == "gpu":
+        mode, index = "gpu", 0
+    elif normalized.startswith("gpu:") and normalized[4:].isascii() and normalized[4:].isdigit():
+        mode, index = "gpu", int(normalized[4:])
+    else:
+        raise ValueError(f"unsupported device value: {device}")
+    return ExecutionPlan(
+        raw_device=device,
+        targets={
+            "llama": ExecutionTarget(
+                family="llama", mode=mode, device_index=index,
+                backend_preference=backend,
+            ),
+            "onnx": ExecutionTarget(
+                family="onnx", mode=mode, device_index=index,
+            ),
+        },
+    )
+```
+
+引擎随后将显式 `onnx_provider` 写入 ONNX 目标，将显式 `llama_backend` 对应的 CPU/GPU 模式写入 llama 目标。运行时要分别尊重这两条链路的选择，例如 `device="gpu:0", llama_backend="cpu", onnx_provider="cuda"` 表示 CPU 生成与 CUDA ONNX 的组合。`llama_backend` 的公开取值为 `cpu`、`cuda`、`vulkan`、`metal`，模型和平台的实际支持范围还需由后端加载路径判断。ONNX 的公开取值为 `cpu`、`cuda`、`directml`，DirectML 用于 Windows。[执行目标定义](../streamvox/models/base.py) · [后端选择工具](../streamvox/models/llama_backend.py)
+
+### 先校验模型参数，再进入推理
+
+引擎调用 `normalize_synthesize_kwargs()` 时，会传入公开的 `max_length`、`min_length`、`remove_meaningless_chars` 及用户的模型私有参数。该方法只接收这些关键字参数。`track_performance` 随后直接传给 `synthesize()`，因此合成方法应接受它。用户经私有参数传入的 `stream` 也需要由适配器解释。
+
+为新模型明确参数白名单、类型、数值范围和未知参数行为。现有适配器的未知参数策略存在差异，新实现可以在归一化阶段直接拒绝未知字段，帮助调用方定位拼写错误。布尔值在 Python 中属于整数子类，整数参数应显式排除它。浮点采样参数还应检查有限值和模型允许的范围。参数默认值由配置或运行时统一提供，用户显式值在校验后覆盖默认值。
+
+文本分段参数至少需要确定 `max_length > 0`、`min_length >= 0`，同时给出两者时核对 `min_length <= max_length`。对不做分段的模型，应明确接受或拒绝这些字段的规则，避免参数看似生效却改变不了文本路径。[Qwen3 参数示例](../streamvox/models/qwen3/adapter.py) · [Breeze 参数示例](../streamvox/models/breeze/adapter.py)
+
+### 构建单参考 Prompt
+
+引擎先检查音频来源二选一、基础类型和列表长度。文件路径的采样率可省略，传给适配器时会使用运行时采样率作为默认值。内存波形必须同时提供采样率。模型还须确定参考文本是否必填、允许的音频长度以及多参考规则。
+
+下面演示单参考模型的音频读取与公共资料保存。假设新运行时提供 `encode_reference(audio)` 返回说话人向量，开发者须把这一行接到目标模型的真实编码器。`MyTTSPromptAsset` 的结构在第 7 节定义。
+
+```python
+# filepath: streamvox/models/my_tts/adapter.py
+import librosa
+import numpy as np
+
+from ...prompt_audio import build_prompt_reference, normalize_prompt_audio
+from ..base import PromptCacheRecord
+from .prompt import MyTTSPromptAsset
+
+
+def make_prompt(
+    self,
+    runtime,
+    role_name: str,
+    sample_rate: int | list[int],
+    audio_path: str | list[str] | None = None,
+    audio_data: np.ndarray | list[np.ndarray] | None = None,
+    prompt_text: str | list[str] | None = None,
+) -> MyTTSPromptAsset:
+    """编码单条参考音频并保存可查询的参考资料。
+
+    参数:
+        runtime: 已加载真实编码器的模型运行时。
+        role_name: 当前参考音色的角色名。
+        sample_rate: 内存音频采样率，路径输入使用文件信息。
+        audio_path: 单条参考音频路径，与内存音频二选一。
+        audio_data: 单条内存波形，与路径二选一。
+        prompt_text: 参考转录，本示例允许缺省。
+    返回:
+        含模型私有向量和公共参考资料的 Prompt。
+    """
+    if any(isinstance(value, list) for value in (sample_rate, audio_path, audio_data, prompt_text)):
+        raise ValueError("my-tts requires exactly one reference audio")
+    if prompt_text is not None and not isinstance(prompt_text, str):
+        raise TypeError("prompt_text must be a string or None")
+    if (audio_path is None) == (audio_data is None):
+        raise ValueError("provide exactly one reference audio source")
+
+    if audio_path is not None:
+        audio, input_rate = librosa.load(audio_path, sr=None, mono=True)
+    else:
+        if not isinstance(sample_rate, int) or isinstance(sample_rate, bool) or sample_rate <= 0:
+            raise ValueError("sample_rate must be a positive integer")
+        audio, input_rate = normalize_prompt_audio(audio_data), sample_rate
+    if input_rate != runtime.sample_rate:
+        audio = librosa.resample(audio, orig_sr=input_rate, target_sr=runtime.sample_rate)
+    audio = normalize_prompt_audio(audio)
+    if audio.size == 0 or not np.isfinite(audio).all():
+        raise ValueError("reference audio must be non-empty and finite")
+
+    # 编码器和公共资料使用同一份波形，查询结果才能对应实际输入。
+    embedding = runtime.encode_reference(audio)
+    prompt = MyTTSPromptAsset(
+        role_name=role_name,
+        model=self.model_name,
+        sample_rate=runtime.sample_rate,
+        prompt_text=prompt_text,
+        speaker_embedding=np.asarray(embedding, dtype=np.float32),
+    )
+    prompt.prompt_cache_record = PromptCacheRecord(
+        prompt_text=[prompt_text],
+        references=(build_prompt_reference(
+            audio=audio, sample_rate=runtime.sample_rate, index=0,
+        ),),
+    )
+    return prompt
+```
+
+目标模型若分别使用参考编码采样率和输出采样率，应按自己的编码入口处理，公共参考资料记录实际消费的波形与相应哈希语义。多参考模型需要逐条定义音频、采样率、文本与说话人的对应关系。引擎允许采样率标量及列表等通用形态，模型是否接受由适配器判断。可参考 S2-Pro 的多参考路径，Qwen3、VoxCPM2、MOSS 与 Breeze 的参考能力按各模型实现使用。[S2-Pro 适配器](../streamvox/models/s2_pro/adapter.py) · [公共参考音频工具](../streamvox/prompt_audio.py)
+
+### 合成方法连接运行时
+
+适配器在 `synthesize()` 中检查 Prompt 类型与模型归属，再进入模型运行时。使用会话的模型通常先 `runtime.create_session()`，再把文本、Prompt、分段选项和已归一化的私有参数交给 `session.synthesize()`。Breeze 则调用运行时自己的生成方法。对引擎暴露的结果始终是逐块音频迭代器。
+
+后端失败应传播原始原因，请求资源在生成器清理路径释放。引擎会关闭底层生成器，`yield from` 可以把关闭传递给子生成器。调用方提前停止消费时需关闭 `engine.stream()` 返回的生成器，再关闭引擎。资源清理与音频输出应同时覆盖正常完成、取消和异常三条路径。
+
+## 6. 支持无 Prompt 纯文本模式
+
+模型能在没有参考音频时生成，可额外实现 `make_default_prompt(runtime) -> BasePromptAsset`。这属于引擎通过属性检查发现的可选能力。VoxCPM2 和 Breeze 提供了此类默认 Prompt，默认资产描述该模型的文本生成初始状态。
+
+只有 `role_name=None`、尚无 Prompt 且未提供参考音频时，引擎才会调用该方法。传入未命中的角色名仍会报角色不存在。默认 Prompt 与流内即时创建的 Prompt 都不会自动写入角色缓存。模型的 `synthesize()` 应根据该资产或已校验的 `mode` 等参数选择合成路径。[VoxCPM2 默认 Prompt](../streamvox/models/voxcpm2/adapter.py) · [Breeze 默认 Prompt](../streamvox/models/breeze/adapter.py)
+
+## 7. Prompt 资产序列化规则
+
+序列化把内存中的模型私有 Prompt 拆成普通数据，使它可以在退出 Python 后保存、下次启动后恢复。`engine.make_prompt(persist=True)` 调用 `PromptCache.store()`，缓存层再调用适配器的序列化方法。读取角色时由缓存层恢复 `SerializedPromptAsset`，再让适配器恢复私有 Prompt。
+
+`SerializedPromptAsset` 共有四个公共身份字段和两组载荷。`role_name`、`model`、`sample_rate` 和 `metadata` 描述角色归属与版本等信息，`metadata` 使用字符串字典。`arrays` 保存 NumPy 数组，例如说话人向量、音频编码和可恢复的解码状态。`json_data` 保存可 JSON 编码的文本、位置和轻量配置。
+
+下面为假设模型定义完整的最小序列化往返。说话人向量是本示例唯一必需的模型私有数组。
+
+```python
+# filepath: streamvox/models/my_tts/prompt.py
+from dataclasses import dataclass
+
+import numpy as np
+
+from ..base import BasePromptAsset, SerializedPromptAsset
+from .spec import MY_TTS_1B_SPEC
 
 
 @dataclass(slots=True)
 class MyTTSPromptAsset(BasePromptAsset):
-    """
-    MyTTS prompt 资产。
+    """保存单参考模型后续合成需要的资料。
 
     参数:
-        role_name: prompt 角色名。
-        model: prompt 所属 StreamVox 模型名。
-        sample_rate: prompt 音频采样率。
-        prompt_text: 参考音频对应文本；无参考文本模型可以为空。
-        speaker_embedding: 说话人向量，供后续合成复用。
-
-    返回:
-        该对象由 adapter.make_prompt 构建，并可通过 PromptCache 序列化到本地。
-
-    边界异常:
-        prompt 与 runtime 的模型名不一致时，应在 adapter.synthesize 中拒绝。
+        prompt_text: 参考音频的转录，可以为空。
+        speaker_embedding: 编码器生成的说话人向量。
     """
 
     prompt_text: str | None = None
     speaker_embedding: np.ndarray | None = None
 
 
-def load_my_tts_config() -> MyTTSConfig:
-    """
-    加载 MyTTS yaml 配置。
+def serialize_prompt_asset(asset: BasePromptAsset) -> SerializedPromptAsset:
+    """把模型 Prompt 转成缓存可保存的数据。
 
     参数:
-        本函数无显式参数；配置路径固定为当前包的 config/my_tts.yaml。
-
+        asset: 当前模型构建的 Prompt。
     返回:
-        返回完成默认值合并后的 MyTTSConfig。
-
-    边界异常:
-        yaml 结构非法或字段无法转换为目标类型时抛出异常。
+        含说话人向量和参考转录的序列化载荷。
     """
-
-    # 配置文件缺失时使用保守默认值，便于单元测试构造最小 runtime。
-    if not CONFIG_PATH.exists():
-        return MyTTSConfig()
-
-    # yaml 分成 runtime 和 paths 两块，避免采样参数、上下文参数和文件名互相污染。
-    payload = yaml.safe_load(CONFIG_PATH.read_text(encoding="utf-8")) or {}
-    runtime = payload.get("runtime", {})
-    paths = payload.get("paths", {})
-    default_n_ctx = int(runtime.get("default_n_ctx", runtime.get("n_ctx", 4096)))
-    return MyTTSConfig(
-        sample_rate=int(runtime.get("sample_rate", 24000)),
-        n_ctx=default_n_ctx,
-        min_n_ctx=int(runtime.get("min_n_ctx", 2048)),
-        max_n_ctx=int(runtime.get("max_n_ctx", 32768)),
-        max_length=int(runtime.get("max_length", 300)),
-        min_length=int(runtime.get("min_length", 30)),
-        model_filename=str(paths.get("model_filename", "my_tts.q8_0.gguf")),
-        decoder_filename=str(paths.get("decoder_filename", "my_tts_decoder.fp16.onnx")),
-        tokenizer_filename=str(paths.get("tokenizer_filename", "tokenizer.json")),
-    )
-
-
-def _clamp_n_ctx(config: MyTTSConfig, requested_n_ctx: int) -> int:
-    """
-    将上下文窗口限制在 MyTTS 声明的能力范围内。
-
-    参数:
-        config: 已加载的 MyTTS 配置。
-        requested_n_ctx: 用户显式传入或 yaml 默认的上下文窗口。
-
-    返回:
-        返回位于 [min_n_ctx, max_n_ctx] 内的上下文窗口。
-
-    边界异常:
-        本函数不主动抛出异常；调用方负责传入整数。
-    """
-
-    # 上下文窗口超界时按模型能力裁剪，避免后端因为不可恢复的 native 错误崩溃。
-    return max(config.min_n_ctx, min(config.max_n_ctx, int(requested_n_ctx)))
-
-
-class MyTTSRuntime:
-    """
-    MyTTS 模型运行时。
-
-    参数:
-        model_dir: 本地模型 bundle 根目录。
-        model_spec: 当前模型规格。
-        device: 用户传给 TTSEngine 的原始设备字符串。
-        n_ctx: 用户显式传入的上下文窗口；为空时使用 yaml 默认值。
-        verify_model_sha256: 是否校验 manifest 中声明的运行期资产 sha256。
-        execution_plan: adapter 根据 device 解析出的统一执行计划。
-
-    返回:
-        初始化后得到可创建 session 的 runtime 对象。
-
-    边界异常:
-        bundle 缺失、manifest 模型名不匹配、资产缺失、后端加载失败时抛出异常。
-    """
-
-    def __init__(
-        self,
-        *,
-        model_dir: Path,
-        model_spec: MyTTSModelSpec = MY_TTS_1B_SPEC,
-        device: str = "auto",
-        n_ctx: int | None = None,
-        verify_model_sha256: bool = True,
-        execution_plan: ExecutionPlan | None = None,
-    ) -> None:
-        self.model_name = model_spec.model_name
-        self.model_spec = model_spec
-        self.bundle_root = Path(model_dir)
-        self.ckpt_root = self.bundle_root / "ckpt"
-        self.device = device
-        self.execution_plan = execution_plan
-
-        # 先加载轻量配置，再用用户显式 n_ctx 覆盖默认值，保持 TTSEngine 的入口语义。
-        self.config = load_my_tts_config()
-        self.config.n_ctx = _clamp_n_ctx(self.config, n_ctx if n_ctx is not None else self.config.n_ctx)
-
-        # 本地 bundle 校验放在后端加载前，失败时给用户清晰的文件级错误。
-        bundle = validate_local_bundle(
-            self.bundle_root,
-            self.model_name,
-            verify_model_sha256=verify_model_sha256,
-        )
-
-        # 运行期路径统一从 ckpt_root 和 yaml 文件名组合，避免散落硬编码。
-        self.paths = {
-            "model": self.ckpt_root / self.config.model_filename,
-            "decoder": self.ckpt_root / self.config.decoder_filename,
-            "tokenizer": self.ckpt_root / self.config.tokenizer_filename,
-        }
-
-        # 这里加载真实后端对象；示例中保留占位，实际模型应替换成 GGUF/ONNX/Torch 初始化。
-        self.model_backend = None
-        self.decoder_backend = None
-
-        # runtime_info 是用户排查环境和 bundle 状态的第一入口，metadata 应保留关键路径和后端信息。
-        self.runtime_info = RuntimeInfo(
-            model=self.model_name,
-            adapter=model_spec.adapter_name,
-            bundle_loaded=True,
-            asset_count=len(bundle.asset_paths),
-            metadata={
-                "model_dir": str(self.bundle_root),
-                "device": str(device),
-                "n_ctx": str(self.config.n_ctx),
-            },
-        )
-        # 初始化预热是可选约定，不属于公共协议强制项；
-        # 如果你的模型首轮 synthesize 会明显卡在 ONNX session、decoder worker 或 GGUF context 冷启动，
-        # 应实现 warmup_for_init() 并在里面做最小合法输入预热。
-        self._init_warmed = False
-
-    @property
-    def sample_rate(self) -> int:
-        """
-        返回当前 runtime 输出采样率。
-
-        参数:
-            本属性无参数。
-
-        返回:
-            返回整数 Hz 采样率。
-
-        边界异常:
-            配置加载阶段已保证 sample_rate 可转成整数。
-        """
-
-        return int(self.config.sample_rate)
-
-    def create_session(self) -> "MyTTSSession":
-        """
-        创建一次合成会话。
-
-        参数:
-            本函数无显式参数；会话复用当前 runtime 的后端对象和配置。
-
-        返回:
-            返回 MyTTSSession，用于持有单次合成的短生命周期状态。
-
-        边界异常:
-            runtime 已 shutdown 后继续创建 session 时，应由真实实现抛出清晰异常。
-        """
-
-        return MyTTSSession(self)
-
-    def warmup_for_init(self) -> None:
-        """
-        可选的初始化预热钩子。
-
-        参数:
-            本函数无显式参数；依赖当前 runtime 已完成后端对象加载。
-
-        返回:
-            无返回值；成功后应把 runtime 标记成“已完成初始化预热”。
-
-        边界异常:
-            预热失败时直接抛出异常，阻止 TTSEngine 继续初始化。
-        """
-
-        # 用幂等标记保护重复调用；测试和异常恢复路径都可能再次触发这个钩子。
-        if self._init_warmed:
-            return
-
-        # 真实实现应该在这里构造最小合法输入，分别预热模型主干、decoder 和必要的辅助编码器。
-        # 如果预热过程中写入了 KV cache、decoder state 或上下文缓存，必须在成功/失败两条路径都显式清理。
-
-        self._init_warmed = True
-
-    def shutdown(self) -> None:
-        """
-        关闭 runtime 持有的后端资源。
-
-        参数:
-            本函数无显式参数。
-
-        返回:
-            无返回值；重复调用应安全返回。
-
-        边界异常:
-            关闭底层 native 资源失败时应记录日志，避免解释器退出阶段产生噪音。
-        """
-
-        # shutdown 必须幂等，TTSEngine 用户可能在异常清理路径中重复调用。
-        if getattr(self, "_shutdown_started", False):
-            return
-        self._shutdown_started = True
-
-        # 真实实现应在这里关闭 decoder worker、ONNX session、llama context 等后端资源。
-        self.model_backend = None
-        self.decoder_backend = None
-
-
-class MyTTSSession:
-    """
-    MyTTS 单次合成会话。
-
-    参数:
-        runtime: 已初始化的 MyTTSRuntime。
-
-    返回:
-        session 本身不直接返回音频；音频由 synthesize 生成器逐块产出。
-
-    边界异常:
-        文本为空、prompt 类型不匹配或后端推理失败时抛出异常。
-    """
-
-    def __init__(self, runtime: MyTTSRuntime) -> None:
-        self.runtime = runtime
-
-    def synthesize(
-        self,
-        *,
-        text: str,
-        prompt: MyTTSPromptAsset,
-        max_length: int | None = None,
-        min_length: int | None = None,
-        **generation_options: object,
-    ) -> Iterable[np.ndarray]:
-        """
-        执行一次 MyTTS 流式合成。
-
-        参数:
-            text: 待合成文本。
-            prompt: 已构建或缓存恢复的 MyTTS prompt。
-            max_length: 文本分段最大长度；为空时使用 runtime 配置。
-            min_length: 文本分段最小合并长度；为空时使用 runtime 配置。
-            generation_options: temperature/top_p 等模型私有采样参数。
-
-        返回:
-            逐块产出 float32 PCM ndarray，采样率等于 runtime.sample_rate。
-
-        边界异常:
-            文本为空、prompt 模型不匹配或后端返回非法音频时抛出异常。
-        """
-
-        # 入口先做业务级校验，避免后端收到空文本后报出难读的 native 错误。
-        if not isinstance(text, str) or not text.strip():
-            raise ValueError("text must be a non-empty string")
-        if prompt.model != self.runtime.model_name:
-            raise ValueError("prompt model does not match current runtime")
-
-        # 真实实现应在这里调用文本预处理、语义模型、codec decoder，并按流式块 yield。
-        yield np.zeros(self.runtime.sample_rate // 10, dtype=np.float32)
-
-
-def serialize_prompt_asset(asset: MyTTSPromptAsset) -> SerializedPromptAsset:
-    """
-    序列化 MyTTS prompt 资产。
-
-    参数:
-        asset: adapter.make_prompt 返回的 MyTTSPromptAsset。
-
-    返回:
-        返回 PromptCache 可保存的 SerializedPromptAsset。
-
-    边界异常:
-        prompt 类型错误或数组字段无法转成 numpy.ndarray 时抛出异常。
-    """
-
-    # 数组字段放 arrays，字符串和轻量结构放 json_data，便于 PromptCache 稳定落盘。
-    arrays = {}
-    if asset.speaker_embedding is not None:
-        arrays["speaker_embedding"] = np.asarray(asset.speaker_embedding, dtype=np.float32)
+    if not isinstance(asset, MyTTSPromptAsset) or asset.model != MY_TTS_1B_SPEC.model_name:
+        raise TypeError("my-tts requires its own prompt asset")
+    if asset.speaker_embedding is None:
+        raise ValueError("speaker_embedding is required")
     return SerializedPromptAsset(
         role_name=asset.role_name,
         model=asset.model,
         sample_rate=asset.sample_rate,
         metadata=dict(asset.metadata),
-        arrays=arrays,
+        arrays={"speaker_embedding": np.asarray(asset.speaker_embedding, dtype=np.float32)},
         json_data={"prompt_text": asset.prompt_text},
     )
 
 
 def deserialize_prompt_asset(payload: SerializedPromptAsset) -> MyTTSPromptAsset:
-    """
-    从 PromptCache 载荷恢复 MyTTS prompt。
+    """从保存的数据恢复可合成的模型 Prompt。
 
     参数:
-        payload: PromptCache 从 npz 文件读取出的序列化载荷。
-
+        payload: 缓存读取的统一载荷。
     返回:
-        返回可直接传给 adapter.synthesize 的 MyTTSPromptAsset。
-
-    边界异常:
-        必要数组缺失或 json_data 类型非法时抛出异常。
+        当前模型可直接使用的 Prompt。
     """
-
+    if payload.model != MY_TTS_1B_SPEC.model_name:
+        raise ValueError("prompt model mismatch")
+    if "speaker_embedding" not in payload.arrays:
+        raise ValueError("cached prompt is missing speaker_embedding")
+    prompt_text = payload.json_data.get("prompt_text")
+    if prompt_text is not None and not isinstance(prompt_text, str):
+        raise TypeError("cached prompt_text must be a string or None")
     return MyTTSPromptAsset(
         role_name=payload.role_name,
         model=payload.model,
         sample_rate=payload.sample_rate,
         metadata=dict(payload.metadata),
-        prompt_text=payload.json_data.get("prompt_text"),
-        speaker_embedding=payload.arrays.get("speaker_embedding"),
+        prompt_text=prompt_text,
+        speaker_embedding=np.asarray(payload.arrays["speaker_embedding"], dtype=np.float32),
     )
 ```
 
-## 5. 实现 Adapter
+适配器应把这两个函数作为自己的 `serialize_prompt_asset()` 和 `deserialize_prompt_asset()` 实现。可以像 Qwen3 一样在方法内延迟导入，也可以直接在适配器类中实现，按模块依赖与逻辑规模选择。实际模型还需要校验向量形状、数据类型和版本，恢复后的资产应拥有合成所需的全部资料。原生句柄、会话对象和进程内指针需要在恢复时重建。
 
-Adapter 是新模型最关键的适配层。它不应该直接承担重型推理，只负责把 StreamVox 的通用调用转成模型私有调用。
+缓存保存为 `prompts/<model_name>/<role_name>.npz`，路径中的模型名和角色名会把 `/` 与空格替换为 `_`。模型私有数组使用 `payload__` 前缀，读取时 `allow_pickle=False`。应使用数值数组，较大的数组通过 `arrays` 保存。`PromptCacheRecord` 则单独保存公开参考资料，`prompt_text` 列表与 `references` 数量一致，文本不适用时用 `None` 占位。`PromptReference` 包含音频数组、内容哈希和序号，哈希还包含采样率。
 
-必须覆盖的能力：
-
-- `model_name`
-- `load_runtime(request)`
-- `get_text_preprocess_config()`
-- `get_hardware_profile()`
-- `resolve_execution_plan(device)`
-- `make_prompt(...)`
-- `serialize_prompt_asset(asset)`
-- `deserialize_prompt_asset(payload)`
-- `normalize_synthesize_kwargs(**model_kwargs)`
-- `synthesize(runtime, text, prompt, **kwargs)`
-
-`ModelAdapter` 协议里还有 `validate_make_prompt_args`，但当前 `TTSEngine` 已经在 `_validate_make_prompt_args` 中做通用参数校验，现有正式 adapter 也把模型语义校验放在 `make_prompt` 内。因此新增模型通常不需要额外实现一个只做透传的 `validate_make_prompt_args`；如果你的类型检查或自定义 registry 强制要求完整协议，可以实现它，但不要再拆出 `_validate_xxx` 空壳函数。
-
-```python
-# filepath: streamvox/models/my_tts/adapter.py
-from __future__ import annotations
-
-from pathlib import Path
-from typing import TYPE_CHECKING, Iterable
-
-import librosa
-import numpy as np
-
-from ...hardware import ModelFootprintProfile
-from ...utils.log import logger
-from ..base import BasePromptAsset, ExecutionPlan, ExecutionTarget, RuntimeRequest, SerializedPromptAsset
-from ..text_processing import TextPreprocessConfig
-from .spec import MY_TTS_1B_SPEC, MyTTSModelSpec
-
-if TYPE_CHECKING:
-    from .runtime import MyTTSRuntime
-
-
-class MyTTS1BGGUFAdapter:
-    """
-    MyTTS 1B GGUF 的 StreamVox 适配器。
-
-    参数:
-        spec: 模型规格，默认使用 MY_TTS_1B_SPEC。
-
-    返回:
-        adapter 本身不直接返回音频；音频由 synthesize 生成器逐块产出。
-
-    边界异常:
-        device、prompt、采样参数和模型私有参数非法时在 adapter 层提前抛出清晰异常。
-    """
-
-    spec: MyTTSModelSpec = MY_TTS_1B_SPEC
-
-    @property
-    def model_name(self) -> str:
-        """
-        返回 StreamVox 对外模型名。
-
-        参数:
-            本属性无参数。
-
-        返回:
-            返回 registry 和 manifest 使用的模型名称。
-
-        边界异常:
-            本属性不主动抛出异常。
-        """
-
-        return self.spec.model_name
-
-    def load_runtime(self, request: RuntimeRequest) -> "MyTTSRuntime":
-        """
-        按 RuntimeRequest 加载 MyTTS runtime。
-
-        参数:
-            request: TTSEngine 构造的运行时请求，包含模型目录、设备、n_ctx 和校验开关。
-
-        返回:
-            返回已加载权重的 MyTTSRuntime。
-
-        边界异常:
-            模型 bundle 或后端加载失败时由 runtime 抛出异常。
-        """
-
-        from .runtime import MyTTSRuntime
-
-        logger.info("[StreamVox] loading my-tts runtime")
-        return MyTTSRuntime(
-            model_dir=Path(request.model_dir),
-            model_spec=self.spec,
-            device=request.device,
-            n_ctx=request.n_ctx,
-            verify_model_sha256=request.verify_model_sha256,
-            execution_plan=request.execution_plan,
-        )
-
-    def get_text_preprocess_config(self) -> TextPreprocessConfig | None:
-        """
-        返回 MyTTS 文本预处理配置。
-
-        参数:
-            本函数无参数。
-
-        返回:
-            如果模型需要保护特殊 token，返回 TextPreprocessConfig；否则返回 None。
-
-        边界异常:
-            本函数不主动抛出异常。
-        """
-
-        # 无模型专属特殊 token 时返回 None，让 runtime/session 自行决定是否调用通用预处理。
-        return None
-
-    def get_hardware_profile(self) -> ModelFootprintProfile:
-        """
-        返回 MyTTS 硬件资源建议。
-
-        参数:
-            本函数无参数。
-
-        返回:
-            返回 TTSEngine 初始化阶段用于资源体检和日志提示的硬件档位。
-
-        边界异常:
-            本函数不主动抛出异常。
-        """
-
-        return ModelFootprintProfile(
-            profile_id=self.spec.hardware_profile_id,
-            parameter_billion=self.spec.parameter_billion,
-            quantization="gguf(q8_0)+onnx(fp16)",
-            min_vram_gb=self.spec.min_vram_gb,
-            recommended_vram_gb=self.spec.recommended_vram_gb,
-            min_ram_gb=self.spec.min_ram_gb,
-            recommended_ram_gb=self.spec.recommended_ram_gb,
-            notes=self.spec.notes,
-        )
-
-    def resolve_execution_plan(self, device: str) -> ExecutionPlan:
-        """
-        把用户 device 字符串解析成 runtime family 执行计划。
-
-        参数:
-            device: 用户传入的 auto/cpu/gpu/gpu:N。
-
-        返回:
-            返回包含 llama 和 onnx 两类 family 的 ExecutionPlan。
-
-        边界异常:
-            device 类型错误或格式不支持时抛出异常。
-        """
-
-        mode, index = self._parse_device_spec(device)
-        return ExecutionPlan(
-            raw_device=device,
-            targets={
-                "llama": ExecutionTarget(family="llama", mode=mode, device_index=index),
-                "onnx": ExecutionTarget(family="onnx", mode=mode, device_index=index),
-            },
-        )
-
-    def _parse_device_spec(self, device: str) -> tuple[str, int | None]:
-        """
-        解析 auto/cpu/gpu/gpu:N 设备字符串。
-
-        参数:
-            device: 用户传入的设备描述。
-
-        返回:
-            返回标准化模式和可选 GPU 序号。
-
-        边界异常:
-            非字符串、非法 GPU 序号或未知模式会抛出异常。
-        """
-
-        if not isinstance(device, str):
-            raise TypeError("device must be a string: auto, cpu, gpu or gpu:<index>")
-        raw = device.strip().lower()
-        if raw in {"auto", "cpu"}:
-            return raw, None
-        if raw == "gpu":
-            return "gpu", 0
-        if raw.startswith("gpu:"):
-            index_text = raw.split(":", 1)[1]
-            if not index_text.isdigit():
-                raise ValueError(f"device index must be a non-negative integer: {device}")
-            return "gpu", int(index_text)
-        raise ValueError(f"unsupported device value: {device}")
-
-    def normalize_synthesize_kwargs(self, **model_kwargs: object) -> dict[str, object]:
-        """
-        校验并归一化 MyTTS 私有合成参数。
-
-        参数:
-            model_kwargs: TTSEngine.stream 透传的模型私有参数。
-
-        返回:
-            返回只包含受支持字段的参数字典。
-
-        边界异常:
-            参数类型非法或数值越界时抛出异常。
-        """
-
-        valid_params = {"temperature", "top_p", "top_k", "seed", "max_length", "min_length", "remove_meaningless_chars"}
-        normalized = {key: value for key, value in model_kwargs.items() if key in valid_params and value is not None}
-
-        # 数值采样参数在 adapter 层提前校验，避免推理跑到一半才因后端类型错误中断。
-        for name in ("temperature", "top_p"):
-            if name in normalized and not isinstance(normalized[name], (int, float)):
-                raise TypeError(f"{name} must be a number")
-        for name in ("top_k", "seed", "max_length", "min_length"):
-            if name in normalized and (not isinstance(normalized[name], int) or isinstance(normalized[name], bool)):
-                raise TypeError(f"{name} must be an integer")
-        if "remove_meaningless_chars" in normalized and not isinstance(normalized["remove_meaningless_chars"], bool):
-            raise TypeError("remove_meaningless_chars must be a boolean")
-        if "max_length" in normalized and int(normalized["max_length"]) <= 0:
-            raise ValueError("max_length must be greater than 0")
-        if "min_length" in normalized and int(normalized["min_length"]) < 0:
-            raise ValueError("min_length must be greater than or equal to 0")
-        if (
-            "max_length" in normalized
-            and "min_length" in normalized
-            and int(normalized["min_length"]) > int(normalized["max_length"])
-        ):
-            raise ValueError("min_length must be less than or equal to max_length")
-        return normalized
-
-    def make_prompt(
-        self,
-        runtime: "MyTTSRuntime",
-        role_name: str,
-        sample_rate: int | list[int],
-        audio_path: str | list[str] | None = None,
-        audio_data: np.ndarray | list[np.ndarray] | None = None,
-        prompt_text: str | list[str] | None = None,
-    ) -> BasePromptAsset:
-        """
-        构建 MyTTS 单参考音频 prompt。
-
-        参数:
-            runtime: 已加载的 MyTTS runtime。
-            role_name: prompt 角色名。
-            sample_rate: 内存音频采样率；路径模式可由音频文件自身决定。
-            audio_path: 单条参考音频路径。
-            audio_data: 单条参考音频数组。
-            prompt_text: 参考音频对应文本，可按模型需要设为必填或可选。
-
-        返回:
-            返回 MyTTSPromptAsset。
-
-        边界异常:
-            多参考输入、音频缺失、采样率非法或 prompt 编码失败时抛出异常。
-        """
-
-        from .runtime import MyTTSPromptAsset
-
-        # 当前示例模型只支持单参考音频；列表输入不能静默降级，否则 prompt 与文本对齐会变得不可解释。
-        if any(isinstance(value, list) for value in (sample_rate, audio_path, audio_data, prompt_text)):
-            raise ValueError("my-tts make_prompt supports exactly one prompt audio")
-        if prompt_text is not None and not isinstance(prompt_text, str):
-            raise TypeError("prompt_text must be a string or None")
-        if not isinstance(sample_rate, int):
-            raise TypeError("sample_rate must be an int")
-
-        # 未传内存音频时从路径读取；路径也缺失说明调用方没有给模型可用的音色参考。
-        if audio_data is None:
-            if audio_path is None:
-                raise ValueError("audio_path or audio_data is required to build a prompt")
-            audio_data, input_rate = librosa.load(audio_path, sr=runtime.sample_rate, mono=True)
-        else:
-            input_rate = sample_rate
-
-        # 后端 encoder 通常只接受固定采样率，输入不一致时提前重采样，保证 prompt token 时间尺度稳定。
-        audio = np.asarray(audio_data, dtype=np.float32).reshape(-1)
-        if input_rate != runtime.sample_rate:
-            audio = np.asarray(
-                librosa.resample(audio, orig_sr=input_rate, target_sr=runtime.sample_rate),
-                dtype=np.float32,
-            )
-
-        # 真实模型应在这里调用 speaker encoder、codec encoder 或 prompt prefill。
-        speaker_embedding = np.zeros((256,), dtype=np.float32)
-
-        return MyTTSPromptAsset(
-            role_name=role_name,
-            model=self.model_name,
-            sample_rate=runtime.sample_rate,
-            prompt_text=prompt_text,
-            speaker_embedding=speaker_embedding,
-            metadata={},
-        )
-
-    def serialize_prompt_asset(self, asset: BasePromptAsset) -> SerializedPromptAsset:
-        """
-        序列化 MyTTS prompt 到 PromptCache。
-
-        参数:
-            asset: make_prompt 返回的 prompt 资产。
-
-        返回:
-            返回 PromptCache 可保存的 SerializedPromptAsset。
-
-        边界异常:
-            prompt 类型不是 MyTTSPromptAsset 时抛出 TypeError。
-        """
-
-        from .runtime import MyTTSPromptAsset, serialize_prompt_asset
-
-        if not isinstance(asset, MyTTSPromptAsset):
-            raise TypeError("my-tts adapter can only serialize MyTTSPromptAsset")
-        return serialize_prompt_asset(asset)
-
-    def deserialize_prompt_asset(self, payload: SerializedPromptAsset) -> BasePromptAsset:
-        """
-        从 PromptCache 载荷恢复 MyTTS prompt。
-
-        参数:
-            payload: PromptCache 读取出的序列化载荷。
-
-        返回:
-            返回 MyTTSPromptAsset。
-
-        边界异常:
-            payload 缺少必要字段时由 runtime.deserialize_prompt_asset 抛出异常。
-        """
-
-        from .runtime import deserialize_prompt_asset
-
-        return deserialize_prompt_asset(payload)
-
-    def synthesize(
-        self,
-        runtime: "MyTTSRuntime",
-        text: str,
-        prompt: BasePromptAsset,
-        stream: bool = True,
-        track_performance: bool = False,
-        max_length: int | None = None,
-        min_length: int | None = None,
-        remove_meaningless_chars: bool = True,
-        **model_kwargs: object,
-    ) -> Iterable[np.ndarray]:
-        """
-        创建 session 并执行 MyTTS 合成。
-
-        参数:
-            runtime: 已加载的 MyTTS runtime。
-            text: 待合成文本。
-            prompt: 已构建或缓存恢复的 prompt。
-            stream: 是否使用流式路径；如果模型没有非流式路径，可以接受但忽略。
-            track_performance: 是否记录模型内部性能指标。
-            max_length: 文本分段最大长度。
-            min_length: 文本分段最小合并长度。
-            remove_meaningless_chars: 是否清除无语义字符。
-            model_kwargs: normalize_synthesize_kwargs 允许的模型私有参数。
-
-        返回:
-            逐块产出 float32 PCM ndarray。
-
-        边界异常:
-            prompt 类型错误、未支持参数绕过归一化或后端推理失败时抛出异常。
-        """
-
-        from .runtime import MyTTSPromptAsset
-
-        if not isinstance(prompt, MyTTSPromptAsset):
-            raise TypeError("my-tts synthesize requires MyTTSPromptAsset")
-
-        # adapter.synthesize 只应该收到 normalize_synthesize_kwargs 的结果；兜底拒绝未知参数，方便调用方定位拼写错误。
-        allowed_generation_keys = {"temperature", "top_p", "top_k", "seed"}
-        unknown_keys = sorted(set(model_kwargs) - allowed_generation_keys)
-        if unknown_keys:
-            raise ValueError(f"unsupported my-tts synthesize parameters: {', '.join(unknown_keys)}")
-
-        session = runtime.create_session()
-        yield from session.synthesize(
-            text=text,
-            prompt=prompt,
-            max_length=max_length,
-            min_length=min_length,
-            remove_meaningless_chars=remove_meaningless_chars,
-            track_performance=track_performance,
-            stream=stream,
-            **model_kwargs,
-        )
-```
-
-## 6. 支持无 Prompt 纯文本模式
-
-默认情况下，`TTSEngine.stream(...)` 在没有 `role_name`、没有缓存 prompt、也没有 `prompt_audio_*` 时会拒绝请求。像 `voxcpm2-gguf` 这种支持纯文本直接生成的模型，需要在 adapter 上额外提供：
-
-```python
-def make_default_prompt(self, runtime: MyTTSRuntime) -> BasePromptAsset:
-    """
-    构建纯文本模式使用的默认 prompt。
-
-    参数:
-        runtime: 已加载的模型 runtime。
-
-    返回:
-        返回可传给 synthesize 的空 prompt 或默认 prompt。
-
-    边界异常:
-        如果模型不支持纯文本模式，不要实现该函数。
-    """
-```
-
-实现原则：
-
-- 支持纯文本就实现 `make_default_prompt`，并确保 `adapter.synthesize` 能根据 prompt 形态或显式参数进入 text 模式。
-- 不支持纯文本就不要实现该函数，让 `TTSEngine` 继续要求调用方提供参考音频。
-- 不要在 `TTSEngine` 里为某个模型写特判。
-
-## 7. Prompt 资产序列化规则
-
-`PromptCache` 会调用：
-
-```text
-adapter.serialize_prompt_asset(prompt)
-adapter.deserialize_prompt_asset(serialized_payload)
-```
-
-`SerializedPromptAsset` 有三类载荷：
-
-- `metadata`: 简单字符串字典，适合版本、模式、说明类字段。
-- `arrays`: numpy 数组字典，适合 speaker embedding、codec token、decoder tail、hidden state。
-- `json_data`: 可 JSON 序列化的结构，适合 prompt_text、位置、轻量配置、列表。
-
-设计 prompt 资产时要注意：
-
-- prompt asset 必须继承 `BasePromptAsset`，至少包含 `role_name`、`model`、`sample_rate`。
-- `asset.model` 必须写 adapter 的 `model_name`，否则跨模型复用 prompt 时无法防错。
-- 大数组放 `arrays`，不要塞进 `metadata` 或 JSON。
-- 恢复后的 prompt 应能直接用于 `adapter.synthesize`，不要依赖 make_prompt 阶段的临时对象。
-- 如果 prompt 里保存了后端状态快照，必须确认它可以跨进程、跨解释器重启恢复；否则只保存可重建的中间结果。
+`engine.get_prompt_data(role_name)` 同时返回模型私有 Prompt 和公开参考资料。旧缓存缺少公开资料时，查询结果的参考列表可以为空，私有资产能否继续合成由其自身数据决定。第 5 节在编码后写入 `prompt_cache_record`，使新缓存能够完整支持这一查询。[缓存实现](../streamvox/prompt_cache.py) · [缓存测试](../tests/test_prompt_data_cache.py)
 
 ## 8. 文本预处理接入
 
-如果模型需要特殊 token、语言标记或长文本分段规则，应提供文本预处理配置。现有模型做法有两种：
+文本预处理负责把输入变成模型将要编码的文本片段。通用 `TextPreprocessConfig` 可声明需要原样保护的特殊 token、包裹规则以及句级和子句级分隔符。特殊 token 是模型用来表达边界或控制信息的文本标记，清理时误删会改变模型输入。配置本身只保存规则，运行时或会话须实际调用相应处理函数。
 
-- `qwen3` 在 adapter 中直接返回 `TextPreprocessConfig(special_tokens=(...))`。
-- `s2_pro` 和 `voxcpm2` 在 `text/preprocess_text.py` 中维护模型专属配置和预处理函数。
+Qwen3 在适配器中返回轻量配置，S2-Pro 和 VoxCPM2 把专属规则放在 `text/` 中。Breeze 保留上游文本与事件标记，不额外清理或自动分段。选择实现时先检查上游模型对原始文本的要求，再决定是否复用通用工具。[通用文本工具](../streamvox/models/text_processing.py) · [模型专属文本示例](../streamvox/models/voxcpm2/text/preprocess_text.py)
 
-建议：
-
-- 简单模型只在 adapter 返回 `TextPreprocessConfig`。
-- 文本规则复杂、需要复用或测试时，新增 `streamvox/models/<model_key>/text/preprocess_text.py`。
-- `language`、`mode`、`control_text` 等模型私有语义应通过 `normalize_synthesize_kwargs` 校验，再传给 runtime/session。
-- 文本预处理默认阈值优先来自 yaml；用户通过 `TTSEngine.stream(max_length=..., min_length=...)` 显式传入时覆盖默认值。
+`language`、`mode`、`control_text`、`instruction` 等字段由各模型定义，应在适配器校验后传给文本或推理入口。分段默认值来自模型配置，`engine.stream(max_length=..., min_length=...)` 的显式值按模型规则覆盖。`remove_meaningless_chars` 默认为 `True`，模型应说明其允许字符规则或保留原始文本的处理方式。
 
 ## 9. 注册默认模型
 
-模型包导出 adapter：
+开发阶段可先使用独立注册表，让本地模型从完整引擎入口运行。下面代码的前提是模型包已经导出真实实现的适配器，且本地模型目录已准备完成。建议将脚本保存为 `example/my_tts_smoke.py`。入口保护让 Windows `spawn` 子进程导入脚本时只取得定义，避免再次初始化引擎和发起合成。
+
+```python
+# filepath: example/my_tts_smoke.py
+from streamvox import TTSEngine
+from streamvox.models.my_tts import MyTTS1BGGUFAdapter
+from streamvox.models.registry import ModelRegistry
+
+
+def main() -> None:
+    """从引擎入口检查新模型，并在请求结束后释放资源。
+
+    Returns:
+        无返回值，逐块打印音频形状和数据类型。
+    """
+    registry = ModelRegistry()
+    registry.register(MyTTS1BGGUFAdapter())
+    engine = TTSEngine(model="ckpts/my-tts-1b-gguf", device="cpu", registry=registry)
+    try:
+        prompt = engine.make_prompt(
+            role_name="my_tts_smoke",
+            audio_path="reference.wav",
+            prompt_text="参考音频的实际内容",
+            persist=False,
+        )
+        for chunk in engine.stream("这是一段适配检查。", role_name=prompt):
+            print(chunk.shape, chunk.dtype)
+    finally:
+        engine.shutdown()
+
+
+if __name__ == "__main__":
+    main()
+```
+
+`ModelRegistry.register()` 以 `model_name` 为键保存适配器，同名注册会替换原实例。内置入口 `builtin_models.py` 自行检查模型名，避免重复登记。模型包先导出适配器。
 
 ```python
 # filepath: streamvox/models/my_tts/__init__.py
-from __future__ import annotations
-
 from .adapter import MyTTS1BGGUFAdapter
 
 __all__ = ["MyTTS1BGGUFAdapter"]
 ```
 
-默认注册入口增加导入和注册：
-
-```python
-# filepath: streamvox/models/builtin_models.py
-from .my_tts import MyTTS1BGGUFAdapter
-
-
-def register_default_models() -> None:
-    """
-    统一维护当前包默认支持的模型清单。
-
-    参数:
-        本函数无参数。
-
-    返回:
-        无返回值；重复调用保持幂等。
-
-    边界异常:
-        adapter 构造失败时会在导入阶段暴露，避免 registry 处于半注册状态。
-    """
-
-    # 新模型只需要加入 adapter 元组；registry 自身只负责存取，不承载模型清单。
-    for adapter in (..., MyTTS1BGGUFAdapter()):
-        if adapter.model_name not in default_registry.list_models():
-            default_registry.register(adapter)
-```
-
-注册后应满足：
+再在 `streamvox/models/builtin_models.py` 导入 `MyTTS1BGGUFAdapter`，将 `MyTTS1BGGUFAdapter()` 加入现有适配器元组。保留其他模型与既有幂等判断。`streamvox/models/__init__.py` 导入时会调用统一注册函数，随后应能验证新模型名。
 
 ```python
 from streamvox.models import default_registry
@@ -1152,152 +586,131 @@ assert "my-tts-1b-gguf" in default_registry.list_models()
 
 ## 10. 自动下载接入
 
-如果希望用户只传模型名即可自动下载：
+本地模型运行通过后，可以在 `DEFAULT_MODELSCOPE_REPOS` 现有字典中加入模型名到仓库的映射。下面演示新增项，`YourOrg` 需要替换为实际仓库所有者。
 
 ```python
 # filepath: streamvox/manifests.py
-DEFAULT_MODELSCOPE_REPOS: dict[str, str] = {
-    "my-tts-1b-gguf": "YourOrg/my-tts-1b-gguf",
-}
+DEFAULT_MODELSCOPE_REPOS["my-tts-1b-gguf"] = "YourOrg/my-tts-1b-gguf"
 ```
 
-ModelScope 仓库必须包含标准 `manifest.json`。下载链路会：
+远端仓库根目录须包含 `manifest.json`，并保留模型许可与归属材料。清单中的 `model` 与注册名一致，运行资产和摘要完整。`sources` 可声明 `local`，下载器接受其本地模型目录语义。
 
-1. 根据 `DEFAULT_MODELSCOPE_REPOS[model_name]` 找到仓库。
-2. 调用 ModelScope SDK 的 `snapshot_download`。
-3. 复制仓库内容到默认模型目录下的 `<model_name>`。
-4. 校验 manifest 中 `ckpt/` 运行期资产的 sha256。
-5. 写入本地缓存 manifest，补充 `sources=["local", "modelscope", ...]`。
+`download_model()` 当前有最新快照和固定版本两条路径。
 
-如果你的模型还没有发布远端仓库，可以先只支持本地 bundle：
+1. 仅给模型名时，下载器按映射调用 ModelScope `snapshot_download`，默认缓存位于目标根目录下的 `.streamvox-download-cache`。引擎自动下载走这条路径。
+2. 同时提供 `revision` 与 `expected_manifest_sha256` 时，下载器按完整远端 Git 提交和原始清单摘要取得固定快照。两参数必须成对出现，适合需要固定模型版本的产品调用方。
+3. 两条路径都先写入目标根目录下的独立隐藏目录，核对清单模型名、来源与运行资产 SHA256。最新快照路径重写本地清单并补充 `local` 和 `modelscope` 来源，固定版本路径保留原始清单。
+4. 全部校验通过后才切换到 `<target>/<model_name>`。取消或失败会清理待发布目录，下载缓存保留供重试。已有可用目标在切换前保持可用，切换失败会尝试恢复原目录。
 
-```python
-engine = TTSEngine(model="ckpts/my-tts-1b-gguf")
-```
+下载 API 还支持 `progress_callback`、`cancel_event`、`cache_dir`。初始化引擎时当前仅传模型名、下载源与默认目标目录，产品若需要版本固定、进度或取消控制，应先调用下载 API，再把完成的本地目录交给引擎。[下载实现](../streamvox/download.py) · [固定版本下载](../streamvox/pinned_download.py)
+
+固定版本路径还会下载该提交中名称被识别的法律文件，包括 `LICENSE`、`MODEL_LICENSE`、`NOTICE`、`COPYING` 及代码列出的扩展名形式，并核对远端提交记录的摘要。模型采用其他法律文件名时，发布前应检查它是否包含在下载结果中，并同步所需的识别规则与测试。
+
+开发者可以先保持只支持本地目录，在准备远端仓库后再登记下载映射。SDK 注册模型和配置远端下载是两个独立步骤。
 
 ## 11. 打包和发布接入
 
-2.1.1 在 Windows x64 / CPython 3.12 上分发可读 Python 源码，wheel tag 为 `cp312-none-win_amd64`。新增 adapter、runtime、schema、worker 和文本处理模块应直接作为源码包含在包中。
+2.1.2 的 wheel 目标为 Windows x64 / CPython 3.12。`pyproject.toml` 自动发现 `streamvox` 下的 Python 模块，并收集 `models/config/*.yaml`、`*.yml` 与指定原生资源。`MANIFEST.in` 还控制 sdist 中的源码、测试、工具和文档。新增文件类型时，分别检查两个归档实际收集的结果。
 
-`pyproject.toml` 负责包发现和资源收集。新增其他类型的运行资产时，补充包数据规则；不要将模型权重塞进 SDK 安装包。模型 bundle 应单独分发并保留其 LICENSE/NOTICE。新模型的第三方代码或派生实现也应记录实际来源提交，保留原始版权与许可。
+新模型的运行依赖进入 SDK 依赖声明，导出与参考对照依赖放在独立工具环境。SDK 运行时维持无需 Torch 的依赖边界，模型目录与权重独立分发。新增第三方代码或派生实现时，保存实际来源提交、原始版权和许可，检查模型权重的使用限制。[项目依赖与资源](../pyproject.toml) · [源码归档规则](../MANIFEST.in) · [模型许可](model-licenses.md)
 
-公开 Git 仓库不保存原生 DLL。使用 `python -m streamvox.native_assets --project-root .` 恢复固定官方归档中的运行库，再使用发行工具构建 wheel 与含 DLL 的 sdist。完整命令、来源记录与安装验收见 [构建与验证](development.md)。
+公开 Git 提交省略 Windows DLL，发行工具从固定公开归档恢复三种后端。源码提交、SDK 版本、原生库来源和最终附件通过发行清单连接。构建要求当前 `HEAD` 与声明的完整提交一致，已跟踪文件无未提交修改，安装包从该提交的独立暂存目录构建。完整构建、汇总、重建和干净环境验收步骤见开发文档。[发行构建](development.md#发行构建)
 
-构建后应检查最终归档中的源码、配置、原生库和法律文件，并在干净 CPython 3.12 环境中导入、初始化和运行模型。
 ## 12. 测试清单
 
-新增模型至少覆盖下面几类测试。
+先用轻量后端替身检查引擎与适配器，再用真实模型检查输入输出。替身用于确定失败发生在哪一层，真实合成用于确认权重和后端实际可用。
 
 ### Registry 和初始化
 
-- `default_registry.list_models()` 包含新 `model_name`。
-- `TTSEngine(model="<本地bundle路径>")` 能从 manifest 解析模型名并初始化。
-- `TTSEngine(model="<model_name>")` 在默认缓存存在时复用本地目录，不触发下载。
-- `verify_model_sha256=False` 能透传到 runtime。
+- 注册表能查到新模型，本地目录的清单能选到对应适配器。
+- 默认模型目录有清单时复用本地目录，缺失时进入下载路径，清单模型名不符时提前报错。
+- `RuntimeRequest` 的 `n_ctx`、校验开关、执行计划与文本配置传递完整。
+- 初始化中途失败能释放已创建资源，预热失败传播给调用方，`shutdown()` 可以重复执行。
 
 ### Adapter 参数契约
 
-- `resolve_execution_plan("auto")`、`"cpu"`、`"gpu"`、`"gpu:1"` 行为正确。
-- 非法 device、非法 mode、非法采样参数能在 adapter 层抛出清晰异常。
-- `normalize_synthesize_kwargs` 只保留支持字段，并拒绝类型错误。
-- 未知合成参数不会静默进入后端。
+- `auto`、`cpu`、`gpu`、`gpu:1` 和非法设备字符串有确定行为，`llama_backend` 关键字可被引擎调用。
+- 显式 llama 与 ONNX 选择相互独立，实际后端信息准确，可用性与回退规则覆盖目标平台。
+- 私有参数、分段参数、布尔值、非有限浮点值与范围错误按模型规则处理，未知字段行为有测试。
 
 ### Prompt 和缓存
 
-- `make_prompt(audio_path=...)` 能构建 prompt。
-- `make_prompt(audio_data=..., sample_rate=...)` 能构建 prompt。
-- 模型不支持多参考音频时，列表输入必须明确报错。
-- `serialize_prompt_asset` 和 `deserialize_prompt_asset` 往返后仍能合成。
-- prompt 的 `model` 不匹配当前 runtime 时必须拒绝。
+- 路径音频与内存音频均能编码，来源冲突、缺少采样率和参考文本错误有明确结果。
+- 多参考能力与列表对齐规则一致，单参考模型拒绝列表输入。
+- 私有 Prompt 序列化往返后仍可合成，模型名、版本和必要数组缺失时能定位问题。
+- 新缓存可通过 `get_prompt_data()` 取得真实参考音频和文本，旧缓存缺少公开资料时保持其声明的读取行为。
+- `persist=False` 与即时合成的 Prompt 保持临时状态，角色列举和删除只影响相应模型缓存。
 
 ### Stream 输出
 
-- `adapter.synthesize` 产出 `np.ndarray`，dtype 应可转为 `float32`。
-- `TTSEngine.stream` 原样返回模型生成的 `float32` 音频片段，返回类型为 `numpy.ndarray`。
-- 支持纯文本模式的模型应覆盖 `make_default_prompt` 和 `--skip-make-prompt` benchmark 路径。
+- 音频块采样率、布局、内容顺序与 `float32` 类型符合模型声明，最后一块能正确收尾。
+- 取消、提前关闭和异常均会清理会话、在途任务与缓存，后续请求可按模型并发规则继续运行。
+- 支持无参考生成的模型覆盖默认 Prompt，以及角色名未命中时的错误分支。
 
 ### Bundle 和下载
 
-- manifest 缺失时报错。
-- manifest 的 `model` 与请求模型不一致时报错。
-- `ckpt/` 资产缺失时报错。
-- sha256 不匹配时默认报错，关闭校验时仍检查文件存在。
-- ModelScope 仓库映射缺失时，`download_model` 给出清晰错误。
+- 清单缺失、模型名不符、必需资产缺失和 SHA256 不符时能在后端加载前报错。
+- 关闭摘要校验仍检查文件存在，模型自己检查必需文件集合和格式。
+- 自动下载映射、固定版本参数对、进度、取消、校验失败与最终切换有对应测试。
+- 发行归档保留新模型源码、配置、依赖及许可，干净环境安装后仍可导入和运行。
+
+可参考引擎流式测试、缓存测试、执行计划测试与具体模型测试。[引擎流式测试](../tests/test_open_source_runtime.py) · [Prompt 测试](../tests/test_prompt_data_cache.py) · [执行计划测试](../tests/test_execution_plan_llama_backend.py)
 
 ## 13. 推荐验证命令
 
-先运行项目实际维护的测试：
+先在 Windows 开发环境运行项目维护的测试。Linux 从已激活环境执行与修改及平台相关的测试，Windows 发行约束按开发文档在 Windows 验证。
 
 ```powershell
-uv run python -m pytest tests -q
+uv run --no-sync python -m pytest tests -q
+uv run --no-sync python -m example.synthesize --help
+uv run --no-sync python tools/benchmark_streamvox_models.py --help
 ```
 
-新模型本地 bundle 冒烟检查应使用自己的参考音频，模型私有参数按适配器能力提供：
+新模型加入内置注册后，使用准备好的本地目录和自己的参考音频执行冒烟合成。下面路径与文本需要按素材替换。
 
 ```powershell
-uv run python example/synthesize.py --model ckpts/my-tts-1b-gguf --reference-audio C:/audio/reference.wav --reference-text "参考音频的实际内容" --text "这是一段新模型适配检查。" --output smoke.wav
+uv run --no-sync python -m example.synthesize --model ckpts/my-tts-1b-gguf --reference-audio C:/audio/reference.wav --reference-text "参考音频的实际内容" --text "这是一段新模型适配检查。" --output smoke.wav
 ```
 
-该示例逐块接收 `float32` 的 `numpy.ndarray` 并写成 WAV。直接连接字节只适用于调用方自行约定的 PCM 传输协议，不是 `stream()` 的返回类型。
-
-资源测试示例：
+示例接收 `float32` NumPy 音频块，连接后写成 WAV。资源测量可通过 JSON 传入适配器支持的私有参数。下列命令显式选择物理 GPU 0，工具会据此使用 `device="gpu:0"`，多卡环境按实际编号调整。先准备已核验的模型目录，基准工具加载时关闭模型 SHA256 复核，其初始化耗时需与包含校验的完整初始化分开记录。
 
 ```powershell
-uv run python tools/benchmark_streamvox_models.py --model ckpts/my-tts-1b-gguf --model-key my-tts --display-name "MyTTS 1B GGUF" --prompt-audio C:/audio/reference.wav --prompt-text "参考音频的实际内容" --stream-kwargs-json '{"temperature":0.8,"top_p":0.9}'
+uv run --no-sync python tools/benchmark_streamvox_models.py --model ckpts/my-tts-1b-gguf --model-key my-tts --display-name "MyTTS 1B GGUF" --physical-gpu-index 0 --prompt-audio C:/audio/reference.wav --prompt-text "参考音频的实际内容" --stream-kwargs-json '{"temperature":0.8,"top_p":0.9}'
 ```
 
-如果模型支持纯文本默认 Prompt：
+若该假设模型还实现了 `make_default_prompt()` 和 `mode="text"`，可跳过参考准备。
 
 ```powershell
-uv run python tools/benchmark_streamvox_models.py --model ckpts/my-tts-1b-gguf --model-key my-tts-text --skip-make-prompt --stream-kwargs-json '{"mode":"text"}'
+uv run --no-sync python tools/benchmark_streamvox_models.py --model ckpts/my-tts-1b-gguf --model-key my-tts-text --physical-gpu-index 0 --skip-make-prompt --stream-kwargs-json '{"mode":"text"}'
 ```
 
-测试和示例运行不能代替数值对照和人工试听验收，具体边界见 [构建与验证](development.md#当前验收边界)。
+保存模型版本、SDK 提交、硬件、后端、输入、参考长度、采样参数和预热方法。数值对照还需固定上游源码与检查点，并保存误差门限、失败项及比较范围。Breeze Q8 已有有损任务验收和用户试听反馈，同时保留严格数值超限记录，其他模型和配置按各自证据判断。[当前验收边界](development.md#当前验收边界)
+
 ## 14. 适配完成标准
 
-一个新模型可以认为已经完整成为 StreamVox 的一部分，需要同时满足：
+适配完成时，需要从用户实际入口确认下列结果。
 
-- 可以通过 `TTSEngine(model="<model_name>")` 或 `TTSEngine(model="<本地bundle路径>")` 初始化。
-- `engine.runtime_info` 能准确展示模型名、adapter、资产数量和关键 metadata。
-- `engine.make_prompt(...)` 能构建并持久化模型 prompt，或模型显式支持 `make_default_prompt`。
-- `engine.stream(...)` 能用同一套公开 API 产出 `float32` PCM chunk。
-- `engine.list_roles()` 和 `engine.del_roles(...)` 对该模型的 prompt cache 正常工作。
-- `streamvox.download.download_model(model="<model_name>")` 能下载并校验 bundle，除非该模型明确只支持本地 bundle。
-- 新模型源码和必要资源进入 wheel 与 sdist，安装后仍可导入和运行。
-- 单测覆盖 adapter 契约、初始化、prompt 缓存和 stream 输出。
-- benchmark 脚本无需改源码即可通过 `--model`、`--stream-kwargs-json`、`--skip-make-prompt` 覆盖新模型。
+- `TTSEngine` 能按已注册的本地模型目录初始化，`runtime_info` 准确显示模型、适配器、资产和关键配置。
+- `make_prompt()` 能构建模型自己的 Prompt，角色缓存往返后仍可合成，公开参考资料可查询，或模型已明确提供无参考生成能力。
+- `stream()` 按声明的采样率和布局返回音频，正常完成、取消与失败的资源清理均已验证。
+- `list_roles()`、`get_prompt_data()` 和 `del_roles()` 对该模型工作，Prompt 的模型归属有校验。
+- 声明支持按模型名下载时，仓库映射、清单校验和完成后切换均已验证。
+- 最终 wheel 与 sdist 包含源码、配置、必要运行资源和许可，安装及 sdist 重建检查通过。
+- benchmark 能通过模型名或本地路径与参数 JSON 运行，无参考模式可通过 `--skip-make-prompt` 覆盖。
+- 对外声明的数值、效果和性能结论均有对应记录，范围准确对应模型版本、精度、后端和输入。
 
 ## 15. 常见设计错误
 
-- 不要把新模型特判写进 `TTSEngine`；模型差异应在 adapter/runtime 中表达。
-- 不要让 registry import 重型后端；adapter 顶层 import 应保持轻量，重型依赖延迟到 `load_runtime`。
-- 不要把 prompt 的大数组写进 JSON；使用 `SerializedPromptAsset.arrays`。
-- 不要默默吞掉未知模型参数；`normalize_synthesize_kwargs` 应白名单过滤并在 `synthesize` 兜底拒绝绕过归一化的参数。
-- 不要把 `model_name` 写成多个不同常量；以 `spec.py` 为单一来源。
-- 不要让 `shutdown()` 只能调用一次；用户异常路径和解释器退出阶段都可能重复关闭资源。
-- 不要让路径音频和内存音频混用；两种来源必须二选一。
-- 不要把支持多参考音频的行为做成隐式拼接；如果支持多参考，必须定义文本对齐规则。
-- 不要为了“看起来模块化”把一个简单校验函数拆成 `validate_xxx -> _validate_xxx` 的空壳链路。
+重复实现公共流程会让同一个参数在不同入口拥有不同含义。模型加载和推理差异放在适配器与运行时，注册表只维护映射，缓存层只处理统一载荷。权重加载延迟到运行时，才能让列举模型和查看帮助保持轻量。
+
+Prompt 恢复后需要完整可用。将大数组转成 JSON、保存进程内指针，或依赖创建 Prompt 时的临时会话，都会使跨次启动恢复失效。应保存可重新创建推理状态的数据，并验证跨解释器重启后的合成。
+
+设备请求、配置与实际计算之间需要逐项对应。读取了参数却未传给后端、混用不同构建的原生库、把多参考音频隐式连接，都会改变调用方对执行位置或参考资料的理解。用真实入口测试输入到后端的每次转换，并记录实际使用值。
+
+文件拆分围绕独立职责。复杂文本规则、资产解析和进程协议可分别维护，简单的校验与执行保持在同一方法中。方法仅转发全部参数给另一个同义私有方法时，可合并以缩短调用路径。
 
 ## 16. 最小改动清单
 
-只支持本地 bundle、单参考音频、普通流式合成的最小接入清单：
+只支持本地模型目录、单参考音频和流式合成时，通常需要模型包中的 `spec.py`、`runtime.py`、`adapter.py`、`__init__.py`，以及配置和测试。Prompt 结构较复杂时独立为 `prompt.py`。开发阶段用独立注册表验证，通过后把适配器加入 `builtin_models.py`。
 
-- 新增 `streamvox/models/<model_key>/spec.py`
-- 新增 `streamvox/models/<model_key>/runtime.py`
-- 新增 `streamvox/models/<model_key>/adapter.py`
-- 新增 `streamvox/models/<model_key>/__init__.py`
-- 新增 `streamvox/models/config/<model_key>.yaml`
-- 修改 `streamvox/models/builtin_models.py`
-- 新增测试文件
-
-如果还要支持自动下载：
-
-- 修改 `streamvox/manifests.py`
-- 确保远端仓库包含标准 `manifest.json`
-
-如果还要进入正式发布：
-
-- 确认新增源码、配置和运行资源被 wheel、sdist 收集
-- 同步新增第三方材料的来源与许可声明
-- 在干净 CPython 3.12 环境安装最终产物并执行运行契约检查
+支持自动下载还需修改 `manifests.py` 并准备远端标准清单。进入正式发行还需核对 `pyproject.toml`、`MANIFEST.in` 和实际归档，补齐新增依赖及第三方许可材料，执行目标环境安装、真实运行和 sdist 重建检查。每项工作对应一个实际入口或交付文件，按模型的能力完成相应路径即可。

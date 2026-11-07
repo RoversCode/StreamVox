@@ -2,40 +2,45 @@
 
 [返回 README](../README.md) · [使用文档](usage.md) · [第三方声明](../THIRD_PARTY_NOTICES.md)
 
-StreamVox 自有代码采用 Apache-2.0。模型权重、词表、音频编解码器权重以及它们的 GGUF/ONNX 转换文件具有独立许可；SDK 免费提供不改变这些条款。SDK wheel 不包含模型权重，模型下载在使用时单独进行。
+一次 StreamVox 部署会使用三类材料。SDK 源码实现统一调用和模型适配，运行库负责执行计算，模型权重保存训练得到的参数。三类材料分别适用各自的许可证，使用时应按实际分发的版本保留相应条款。
+
+StreamVox 自有代码采用 Apache-2.0。安装包（wheel）提供代码和原生运行库，模型权重在首次调用时另行下载。将权重转换为 GGUF 或 ONNX 后，它仍属于原模型的派生材料，使用范围由该权重版本的许可证确定。
 
 ## 默认模型
 
-以下记录以 2026-10-16 核对的默认 ModelScope 仓库 LICENSE/NOTICE 和官方原始来源为依据。实际使用时应保存所选提交附带的许可文件；更换权重来源或 revision 后应重新核对。
+下表列出 SDK 注册名、官方来源、默认下载位置及权重的主要许可范围。前五行依据 2026-10-16 的来源核对记录，Breeze 依据固定检查点和 2026-11-06 的发布记录。部署时保存所选提交携带的完整许可文件，更换权重来源或提交后重新核对。
 
-| SDK 模型 | 原始来源与权利人 | 默认转换仓库 | 权重许可与商业边界 |
+| SDK 模型 | 原始来源与权利人 | 默认转换仓库 | 权重许可与商业范围 |
 | --- | --- | --- | --- |
-| `qwen3-tts-clone-0.6b-gguf` | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，Alibaba Cloud / Qwen Team | [ChengHee/qwen3-tts-clone-0.6b-gguf](https://modelscope.cn/models/ChengHee/qwen3-tts-clone-0.6b-gguf) | Apache-2.0；商业使用仍须遵守其完整条款。 |
-| `qwen3-tts-clone-1.7b-gguf` | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，Alibaba Cloud / Qwen Team | [ChengHee/qwen3-tts-clone-1.7b-gguf](https://modelscope.cn/models/ChengHee/qwen3-tts-clone-1.7b-gguf) | Apache-2.0；商业使用仍须遵守其完整条款。 |
-| `s2-pro-4b-gguf` | [Fish Audio S2-Pro](https://huggingface.co/fishaudio/s2-pro)，39 AI, INC. / Fish Audio | [ChengHee/s2-pro-4b-gguf](https://modelscope.cn/models/ChengHee/s2-pro-4b-gguf) | Fish Audio Research License（2026-03-07）；研究和非商业使用按原条款，**商业用途需要 Fish Audio 单独书面许可**。 |
-| `voxcpm2-gguf` | [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) / [VoxCPM](https://github.com/OpenBMB/VoxCPM)，OpenBMB | [ChengHee/voxcpm2-gguf](https://modelscope.cn/models/ChengHee/voxcpm2-gguf) | Apache-2.0；商业使用仍须遵守其完整条款。 |
-| `moss-tts-nano-onnx` | [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) / [100M 权重](https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano-100M)，OpenMOSS Team、Fudan University、SII、MOSI | [ChengHee/moss-tts-nano-onnx](https://modelscope.cn/models/ChengHee/moss-tts-nano-onnx) | Apache-2.0；商业使用仍须遵守其完整条款。 |
+| `qwen3-tts-clone-0.6b-gguf` | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，Alibaba Cloud / Qwen Team | [ChengHee/qwen3-tts-clone-0.6b-gguf](https://modelscope.cn/models/ChengHee/qwen3-tts-clone-0.6b-gguf) | Apache-2.0，商业使用按完整条款履行义务。 |
+| `qwen3-tts-clone-1.7b-gguf` | [Qwen3-TTS](https://github.com/QwenLM/Qwen3-TTS)，Alibaba Cloud / Qwen Team | [ChengHee/qwen3-tts-clone-1.7b-gguf](https://modelscope.cn/models/ChengHee/qwen3-tts-clone-1.7b-gguf) | Apache-2.0，商业使用按完整条款履行义务。 |
+| `s2-pro-4b-gguf` | [Fish Audio S2-Pro](https://huggingface.co/fishaudio/s2-pro)，39 AI, INC. / Fish Audio | [ChengHee/s2-pro-4b-gguf](https://modelscope.cn/models/ChengHee/s2-pro-4b-gguf) | Fish Audio Research License（2026-03-07）。研究与非商业使用按原文，商业用途需要 Fish Audio 单独书面许可。 |
+| `voxcpm2-gguf` | [VoxCPM2](https://huggingface.co/openbmb/VoxCPM2) / [VoxCPM](https://github.com/OpenBMB/VoxCPM)，OpenBMB | [ChengHee/voxcpm2-gguf](https://modelscope.cn/models/ChengHee/voxcpm2-gguf) | Apache-2.0，商业使用按完整条款履行义务。 |
+| `moss-tts-nano-onnx` | [MOSS-TTS-Nano](https://github.com/OpenMOSS/MOSS-TTS-Nano) / [100M 权重](https://huggingface.co/OpenMOSS-Team/MOSS-TTS-Nano-100M)，OpenMOSS Team、Fudan University、SII、MOSI | [ChengHee/moss-tts-nano-onnx](https://modelscope.cn/models/ChengHee/moss-tts-nano-onnx) | Apache-2.0，商业使用按完整条款履行义务。 |
+| `breeze-tts-2-gguf` | [BreezeBlue/breeze-tts-2](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4)，BreezeBlue | [ChengHee/Breeze-TTS-2-GGUF](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF) | 模型权重、衍生模型及自托管输出仅供研究与非商业用途，完整条款见模型目录的 `MODEL_LICENSE`。 |
 
 ## Breeze TTS 2
 
-`breeze-tts-2-gguf` 使用本地导出的 [BreezeBlue/breeze-tts-2](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4)，固定检查点为 `3e28c5151381a722f1d8661b4118c298caa77aa4`；参考[源码提交](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3)为 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。默认转换模型发布于 [ChengHee/Breeze-TTS-2-GGUF](https://www.modelscope.cn/models/ChengHee/Breeze-TTS-2-GGUF)，使用 Q8_0 生成权重和 FP32 ONNX。
+该模型采用固定检查点 `3e28c5151381a722f1d8661b4118c298caa77aa4`，转换实现参考源码提交 `daa6cb2efe5471f09369229f322d20bb956cb3c3`。主干和深度解码器保存为 Q8_0 GGUF，其余组件保存为 FP32 ONNX。[检查点](https://huggingface.co/BreezeBlue/breeze-tts-2/tree/3e28c5151381a722f1d8661b4118c298caa77aa4) · [参考源码](https://github.com/breezeblue-ai/breeze-tts/tree/daa6cb2efe5471f09369229f322d20bb956cb3c3)
 
-2026-11-04 核对的上游说明明确：源码采用 Apache-2.0，**模型权重、衍生模型和自托管输出仅供研究及非商业用途**。Qwen3 主干与完整深度解码器转换为 GGUF，其余编码、条件投影及声码器使用 ONNX；FP32、原始 BF16 及 Q8_0 量化转换均适用该模型许可。再分发时应保留该检查点的完整许可及归属文件；SDK 的 Apache-2.0 不授予该模型的商业使用权。
+该检查点把源码许可与模型许可分开。`LICENSE` 保存源码的 Apache-2.0 条款，`MODEL_LICENSE` 保存模型权重、衍生模型和自托管输出的研究与非商业使用条款，`NOTICE` 保存归属说明。FP32、BF16 和 Q8_0 描述的是数值存储方式，这些转换后的模型继续适用同一模型许可。再分发时保留对应的法律文件。
 
 ## S2-Pro
 
-当前默认转换仓库附带的是 [Fish Audio Research License 原文](https://huggingface.co/fishaudio/s2-pro/blob/1de9996b6be38b745688de084d87a5633f714e4e/LICENSE.md)。该许可没有授予商业使用权，要求商业用途另行获得 Fish Audio 书面许可；其分发、归属声明和使用限制也继续适用。Built with Fish Audio。
+默认转换模型携带 Fish Audio Research License。它规定研究与非商业使用的条件，并要求商业用途另行取得 Fish Audio 书面许可。分发、归属和使用限制按该版本原文执行。[固定许可原文](https://huggingface.co/fishaudio/s2-pro/blob/1de9996b6be38b745688de084d87a5633f714e4e/LICENSE.md)
 
-Fish Speech 仓库后续版本可能采用其他许可。不要因为 SDK 已采用 Apache-2.0，或上游主分支后来更换了许可证，就认为已下载权重的条款自动改变。这里的许可表也不构成 Fish Audio 的商业授权。
+模型要求的归属说明需随相关分发保留。Built with Fish Audio。上游源码或后续主分支采用其他许可证时，已下载权重仍按其所选版本的条款使用。
 
 ## 已知的外部说明错误
 
-核对时，默认 `voxcpm2-gguf` 仓库的 NOTICE 将模型误写为 Qwen3-TTS、原权利人误写为 Alibaba Cloud；`moss-tts-nano-onnx` 仓库的 NOTICE 同样误写了 Alibaba Cloud / Qwen Team，并存在沿用其他模型转换描述的情况。本表按上面的官方模型来源区分权利人，不沿用这些错误归属。
+2026-10-16 的核对记录发现，VoxCPM2 默认转换仓库的 NOTICE 曾把模型及权利人误写成 Qwen3-TTS、Alibaba Cloud。MOSS 默认转换仓库的 NOTICE 也曾沿用 Alibaba Cloud / Qwen Team 和其他模型的转换描述。
 
-这次 SDK 开源只同步本项目和公开源码仓库的文档，没有修改外部 ModelScope 模型仓库。分发这些模型前，应核对实际权重来源、保留原许可，并修正与实际转换内容不符的 NOTICE；不能把错误归属当作新的授权证明。
+上表按官方模型来源区分这些权利人。维护者再分发某个具体提交前，应把该提交的权重来源、LICENSE 和 NOTICE 对照核实，再修正与实际内容不符的归属描述。上述日期记录用于指出已发现的来源差异，具体版本以它携带的文件为准。
 
 ## 下载与再分发
 
-用于部署的 bundle 应保留 `manifest.json`、运行权重和对应来源的 LICENSE/NOTICE。法律文件不参与音频推理，不应因 README 文案变化阻断模型运行，但再分发时仍须保留适用的法律声明。
+模型目录（bundle）包含运行资产和随模型提供的说明材料。运行清单 `manifest.json` 记录模型名、文件路径和内容摘要，SDK 加载时检查 `ckpt/` 中的运行资产。许可证和归属文件随模型保存，音频运算本身使用权重和计算图。
 
-生产环境可通过 `download_model(..., revision=..., expected_manifest_sha256=...)` 固定模型版本，两项必须同时提供。具体调用和目录语义见 [使用文档](usage.md#模型下载与固定版本)。
+按模型名自动下载会取得默认仓库的快照。固定版本下载同时传 `revision` 和 `expected_manifest_sha256`，分别选择提交并校验原始清单。当前源码还按同一提交的文件树取得 LICENSE、MODEL_LICENSE、NOTICE、COPYING 及识别的扩展名版本，并校验这些文件的摘要。[固定下载方式](usage.md#模型下载与固定版本)
+
+再分发时，保存与所用权重相同版本的完整许可和归属文件。若原仓库采用其他法律文件名，应由维护者将这些原文一并纳入分发目录。原生库与 Python 依赖的权利说明见第三方声明。[第三方组件](../THIRD_PARTY_NOTICES.md)
